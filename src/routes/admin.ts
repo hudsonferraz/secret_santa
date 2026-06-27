@@ -20,5 +20,7 @@ router.delete("/events/:id", auth.validate, events.deleteEvent);
 router.get("/groups/:id_event", auth.validate, groups.getAll);
 router.get("/groups/:id_event/:id", auth.validate, groups.getGroup);
 router.post("/groups/:id_event", auth.validate, groups.addGroup);
+router.put("/groups/:id_event/:id", auth.validate, groups.updateGroup);
+router.delete("/groups/:id_event/:id", auth.validate, groups.deleteGroup);
 
 export default router;
