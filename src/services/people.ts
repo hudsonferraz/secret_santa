@@ -13,7 +13,7 @@ export const getAll = async (filters: GetAllFilters) => {
 };
 
 type GetOneFilters = {
-  id: number;
+  id?: number;
   id_event?: number;
   id_group?: number;
   phone_number?: string;
