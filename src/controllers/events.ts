@@ -1,5 +1,6 @@
 import { RequestHandler } from "express";
 import * as events from "../services/events";
+import * as people from "../services/people";
 import { z } from "zod";
 
 export const getAll: RequestHandler = async (req, res) => {
@@ -44,7 +45,13 @@ export const updateEvent: RequestHandler = async (req, res) => {
   if (!body.success) return res.json({ error: "Dados inválidos" });
 
   const updatedEvent = await events.update(Number(id), body.data);
-  if (updatedEvent) return res.json({ event: updatedEvent });
+  if (updatedEvent) {
+    if (updatedEvent.status) {
+      const result = await events.doMatches(Number(id));
+      if (!result) return res.json({ error: "Grupo impossível de ser formado" });
+    }
+  } else {
+    await people.updatePerson({ id: Number(id), id_event: Number(id) }, { matched: "" });
 
   res.json({ error: "Ocorreu um erro" });
 };
