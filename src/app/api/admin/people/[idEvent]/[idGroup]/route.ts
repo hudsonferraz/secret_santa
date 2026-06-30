@@ -32,7 +32,6 @@ export async function POST(
   const { idEvent, idGroup } = await params;
   const addPersonSchema = z.object({
     name: z.string(),
-    phone_number: z.string(),
   });
   const body = addPersonSchema.safeParse(
     await request.json().catch(() => null),
@@ -45,7 +44,6 @@ export async function POST(
     id_event: Number(idEvent),
     id_group: Number(idGroup),
     name: body.data.name,
-    phone_number: body.data.phone_number,
   });
   if (newPerson) {
     return NextResponse.json({ person: newPerson }, { status: 201 });

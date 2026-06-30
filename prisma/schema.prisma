@@ -37,7 +37,8 @@ model EventPeople {
   id_event Int
   id_group Int
   name String
-  phone_number String
+  phone_number String?
+  reveal_token String @unique @default(uuid())
   matched String @default("")
 
   event Event? @relation(fields: [id_event], references: [id])

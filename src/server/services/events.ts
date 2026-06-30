@@ -1,7 +1,7 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import * as people from "./people";
 import { encryptMatch } from "../utils/match";
+import { findSecretSantaAssignment } from "./matching";
 
 export const getAll = async () => {
   try {
@@ -45,71 +45,61 @@ export const remove = async (id: number) => {
   }
 };
 
-export const doMatches = async (id: number): Promise<boolean> => {
-  const eventItem = await prisma.event.findFirst({
-    where: { id },
-    select: { grouped: true },
-  });
+export const runDraw = async (id: number): Promise<boolean> => {
+  try {
+    return await prisma.$transaction(async (transaction) => {
+      const eventItem = await transaction.event.findFirst({
+        where: { id },
+        select: { grouped: true, status: true },
+      });
 
-  if (!eventItem) return false;
+      if (!eventItem || eventItem.status) return false;
 
-  const peopleList = await people.getAll({ id_event: id });
-  if (!peopleList) return false;
+      const peopleList = await transaction.eventPeople.findMany({
+        where: { id_event: id },
+        select: { id: true, id_group: true },
+      });
 
-  let sortedList: { id: number; match: number }[] = [];
-  let sortable: number[] = [];
+      const assignments = findSecretSantaAssignment(
+        peopleList,
+        eventItem.grouped,
+      );
+      if (!assignments) return false;
 
-  let attempts = 0;
-  const maxAttempts = peopleList.length;
-  let keepTrying = true;
-  while (keepTrying && attempts < maxAttempts) {
-    keepTrying = false;
-    attempts++;
-    sortedList = [];
-    sortable = peopleList.map((item) => item.id);
-
-    for (const person of peopleList) {
-      let sortableFiltered: number[] = sortable;
-      if (eventItem.grouped) {
-        sortableFiltered = sortable.filter((sortableItem) => {
-          const sortablePerson = peopleList.find(
-            (item) => item.id === sortableItem,
-          );
-          return person.id_group !== sortablePerson?.id_group;
+      for (const assignment of assignments) {
+        await transaction.eventPeople.updateMany({
+          where: { id: assignment.id, id_event: id },
+          data: { matched: encryptMatch(assignment.match) },
         });
       }
 
-      if (
-        sortableFiltered.length === 0 ||
-        (sortableFiltered.length === 1 && person.id === sortableFiltered[0])
-      ) {
-        keepTrying = true;
-      } else {
-        let sortedIndex = Math.floor(Math.random() * sortableFiltered.length);
-        while (sortableFiltered[sortedIndex] === person.id) {
-          sortedIndex = Math.floor(Math.random() * sortableFiltered.length);
-        }
+      await transaction.event.update({
+        where: { id },
+        data: { status: true },
+      });
 
-        const match = sortableFiltered[sortedIndex];
-        if (match === undefined) {
-          keepTrying = true;
-        } else {
-          sortedList.push({ id: person.id, match });
-          sortable = sortable.filter((item) => item !== match);
-        }
-      }
-    }
+      return true;
+    });
+  } catch {
+    return false;
   }
+};
 
-  if (attempts < maxAttempts) {
-    for (const sorted of sortedList) {
-      await people.updatePerson(
-        { id: sorted.id, id_event: id },
-        { matched: encryptMatch(sorted.match) },
-      );
-    }
+export const resetDraw = async (id: number): Promise<boolean> => {
+  try {
+    await prisma.$transaction(async (transaction) => {
+      await transaction.eventPeople.updateMany({
+        where: { id_event: id },
+        data: { matched: "" },
+      });
+
+      await transaction.event.update({
+        where: { id },
+        data: { status: false },
+      });
+    });
     return true;
+  } catch {
+    return false;
   }
-
-  return false;
 };

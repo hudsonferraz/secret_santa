@@ -24,6 +24,7 @@ import {
   adminUpdateEvent,
 } from "@/lib/apiClient";
 import type { Event, EventGroup, EventPeople } from "@/lib/types";
+import { buildRevealPath, buildRevealUrl } from "@/lib/revealUrl";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +68,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
   const [groupName, setGroupName] = useState("");
   const [personName, setPersonName] = useState("");
-  const [personPhone, setPersonPhone] = useState("");
 
   const isLocked = eventItem?.status === true;
 
@@ -148,10 +148,22 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     await loadPeople(groupId);
   };
 
-  const handleCopyLink = async () => {
+  const handleCopyRevealLink = async (revealToken: string) => {
+    const origin =
+      typeof window === "undefined" ? "" : window.location.origin;
+    try {
+      await navigator.clipboard.writeText(
+        buildRevealUrl(revealToken, origin),
+      );
+      toast.success("Link pessoal copiado!");
+    } catch {
+      toast.error("Não foi possível copiar o link.");
+    }
+  };
+  const handleCopyEventLink = async () => {
     try {
       await navigator.clipboard.writeText(shareUrl);
-      toast.success("Link copiado!");
+      toast.success("Link do evento copiado!");
     } catch {
       toast.error("Não foi possível copiar o link.");
     }
@@ -184,7 +196,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     setIsSaving(true);
     const result = await adminCreatePerson(token, eventId, selectedGroupId, {
       name: personName.trim(),
-      phone_number: personPhone.trim(),
     });
 
     if (!result.ok) {
@@ -195,7 +206,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
     toast.success("Participante adicionado.");
     setPersonName("");
-    setPersonPhone("");
     setIsSaving(false);
     await loadPeople(selectedGroupId);
   };
@@ -312,7 +322,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input readOnly value={shareUrl} className="font-mono text-xs" />
-          <Button variant="outline" onClick={handleCopyLink}>
+          <Button variant="outline" onClick={handleCopyEventLink}>
             <CopyIcon />
             Copiar link
           </Button>
@@ -479,16 +489,13 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
           <CardDescription>
             {selectedGroupId === null
               ? "Selecione ou crie um grupo para adicionar participantes."
-              : "Telefone será usado na página pública para revelar o sorteio."}
+              : "Copie o link pessoal de cada participante e envie no WhatsApp."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           {!isLocked && selectedGroupId !== null && (
-            <form
-              onSubmit={handleCreatePerson}
-              className="grid gap-3 sm:grid-cols-2"
-            >
-              <div className="space-y-2">
+            <form onSubmit={handleCreatePerson} className="flex flex-col gap-3 sm:flex-row">
+              <div className="flex-1 space-y-2">
                 <Label htmlFor="person_name">Nome</Label>
                 <Input
                   id="person_name"
@@ -498,20 +505,9 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                   disabled={isSaving}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="person_phone">Telefone</Label>
-                <Input
-                  id="person_phone"
-                  type="tel"
-                  value={personPhone}
-                  onChange={(event) => setPersonPhone(event.target.value)}
-                  required
-                  disabled={isSaving}
-                />
-              </div>
               <Button
                 type="submit"
-                className="sm:col-span-2 sm:w-fit"
+                className="sm:self-end"
                 disabled={isSaving}
               >
                 {isSaving ? (
@@ -540,23 +536,36 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                   key={person.id}
                   className="flex items-center justify-between gap-3 px-4 py-3"
                 >
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="font-medium">{person.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {person.phone_number}
+                    <p className="truncate text-xs text-muted-foreground">
+                      {buildRevealPath(person.reveal_token)}
                     </p>
                   </div>
-                  {!isLocked && (
+                  <div className="flex shrink-0 items-center gap-1">
                     <Button
                       type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      onClick={() => handleDeletePerson(person.id)}
-                      disabled={isSaving}
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        handleCopyRevealLink(person.reveal_token)
+                      }
                     >
-                      <Trash2Icon />
+                      <CopyIcon />
+                      Link
                     </Button>
-                  )}
+                    {!isLocked && (
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => handleDeletePerson(person.id)}
+                        disabled={isSaving}
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    )}
+                  </div>
                 </li>
               ))}
             </ul>

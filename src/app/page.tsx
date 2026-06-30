@@ -27,7 +27,7 @@ const steps = [
     icon: ShieldCheckIcon,
     title: "Revelação privada",
     description:
-      "Cada pessoa acessa o link do evento e descobre seu sorteado usando o telefone cadastrado.",
+      "Cada pessoa recebe um link privado do organizador para descobrir seu amigo secreto.",
   },
 ];
 

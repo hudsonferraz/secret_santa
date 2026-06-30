@@ -1,4 +1,4 @@
-import type { ApiErrorResponse, ApiResult, PersonSearchResponse } from "@/lib/types";
+import type { ApiErrorResponse, ApiResult } from "@/lib/types";
 
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
@@ -64,16 +64,6 @@ export async function apiRequest<T>(
     data: payload as T,
     status: response.status,
   };
-}
-
-export async function searchPersonByPhone(
-  eventId: number,
-  phoneNumber: string,
-) {
-  const query = new URLSearchParams({ phone_number: phoneNumber });
-  return apiRequest<PersonSearchResponse>(
-    `/api/people/${eventId}/search?${query.toString()}`,
-  );
 }
 
 export async function adminLogin(password: string) {
@@ -180,7 +170,7 @@ export async function adminCreatePerson(
   token: string,
   eventId: number,
   groupId: number,
-  data: { name: string; phone_number: string },
+  data: { name: string },
 ) {
   return apiRequest<{ person: import("@/lib/types").EventPeople }>(
     `/api/admin/people/${eventId}/${groupId}`,

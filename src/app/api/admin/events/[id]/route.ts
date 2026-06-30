@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as events from "@/server/services/events";
-import * as people from "@/server/services/people";
 import { isAuthorized } from "@/lib/auth";
 import { z } from "zod";
 
@@ -28,6 +27,8 @@ export async function PUT(
   }
 
   const { id } = await params;
+  const eventId = Number(id);
+
   const updateEventSchema = z.object({
     status: z.boolean().optional(),
     title: z.string().optional(),
@@ -41,21 +42,41 @@ export async function PUT(
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }
 
-  const updatedEvent = await events.update(Number(id), body.data);
-  if (updatedEvent) {
-    if (updatedEvent.status) {
-      const result = await events.doMatches(Number(id));
-      if (!result) {
-        return NextResponse.json(
-          { error: "Grupo impossível de ser formado" },
-          { status: 400 },
-        );
-      }
-    } else {
-      await people.updatePerson({ id_event: Number(id) }, { matched: "" });
+  const { status, ...rest } = body.data;
+
+  if (status === true) {
+    const drawResult = await events.runDraw(eventId);
+    if (!drawResult) {
+      return NextResponse.json(
+        { error: "Grupo impossível de ser formado" },
+        { status: 400 },
+      );
     }
-    return NextResponse.json({ event: updatedEvent });
+
+    if (Object.keys(rest).length > 0) {
+      await events.update(eventId, rest);
+    }
+
+    const eventItem = await events.getOne(eventId);
+    return NextResponse.json({ event: eventItem });
   }
+
+  if (status === false) {
+    const resetResult = await events.resetDraw(eventId);
+    if (!resetResult) {
+      return NextResponse.json({ error: "Ocorreu um erro" }, { status: 400 });
+    }
+
+    if (Object.keys(rest).length > 0) {
+      await events.update(eventId, rest);
+    }
+
+    const eventItem = await events.getOne(eventId);
+    return NextResponse.json({ event: eventItem });
+  }
+
+  const updatedEvent = await events.update(eventId, body.data);
+  if (updatedEvent) return NextResponse.json({ event: updatedEvent });
 
   return NextResponse.json({ error: "Ocorreu um erro" }, { status: 400 });
 }

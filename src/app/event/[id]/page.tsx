@@ -9,7 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import * as events from "@/server/services/events";
-import { MatchReveal } from "./MatchReveal";
 
 type EventPageProps = {
   params: Promise<{ id: string }>;
@@ -67,24 +66,27 @@ export default async function EventPage({ params }: EventPageProps) {
           </p>
         </header>
 
-        {eventItem.status ? (
-          <MatchReveal eventId={eventId} />
-        ) : (
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle>Sorteio ainda não realizado</CardTitle>
-              <CardDescription>
-                O organizador ainda não realizou o sorteio deste evento.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Volte aqui depois que o sorteio for feito para descobrir seu
-                amigo secreto usando o telefone cadastrado.
-              </p>
-            </CardContent>
-          </Card>
-        )}
+        <Card className="w-full">
+          <CardHeader>
+            <CardTitle>
+              {eventItem.status
+                ? "Use seu link pessoal"
+                : "Sorteio ainda não realizado"}
+            </CardTitle>
+            <CardDescription>
+              {eventItem.status
+                ? "Cada participante recebe um link privado do organizador."
+                : "O organizador ainda não realizou o sorteio deste evento."}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              {eventItem.status
+                ? "Abra o link que foi enviado para você no WhatsApp ou mensagem privada. Esse link é único e mostra apenas o seu sorteado."
+                : "Volte ao seu link pessoal depois que o sorteio for feito."}
+            </p>
+          </CardContent>
+        </Card>
       </main>
     </div>
   );
