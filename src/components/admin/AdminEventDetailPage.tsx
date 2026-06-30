@@ -1,0 +1,568 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import {
+  CopyIcon,
+  Loader2Icon,
+  PlusIcon,
+  Trash2Icon,
+} from "lucide-react";
+import { toast } from "sonner";
+import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
+import { AdminShell } from "@/components/admin/AdminShell";
+import {
+  adminCreateGroup,
+  adminCreatePerson,
+  adminDeleteEvent,
+  adminDeleteGroup,
+  adminDeletePerson,
+  adminGetEvent,
+  adminGetGroups,
+  adminGetPeople,
+  adminUpdateEvent,
+} from "@/lib/apiClient";
+import type { Event, EventGroup, EventPeople } from "@/lib/types";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
+
+const DEFAULT_GROUP_NAME = "Participantes";
+
+type AdminEventDetailPageProps = {
+  eventId: number;
+};
+
+export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
+  const router = useRouter();
+  const { token } = useAdminAuth();
+
+  const [eventItem, setEventItem] = useState<Event | null>(null);
+  const [groups, setGroups] = useState<EventGroup[]>([]);
+  const [people, setPeople] = useState<EventPeople[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const [groupName, setGroupName] = useState("");
+  const [personName, setPersonName] = useState("");
+  const [personPhone, setPersonPhone] = useState("");
+
+  const isLocked = eventItem?.status === true;
+
+  const shareUrl = useMemo(() => {
+    if (typeof window === "undefined") return `/event/${eventId}`;
+    return `${window.location.origin}/event/${eventId}`;
+  }, [eventId]);
+
+  const loadPeople = useCallback(
+    async (groupId: number) => {
+      if (!token) return;
+
+      const result = await adminGetPeople(token, eventId, groupId);
+      if (result.ok) {
+        setPeople(result.data.people);
+      } else {
+        toast.error(result.error);
+      }
+    },
+    [token, eventId],
+  );
+
+  const loadData = useCallback(async () => {
+    if (!token) return;
+
+    setIsLoading(true);
+
+    const eventResult = await adminGetEvent(token, eventId);
+    if (!eventResult.ok) {
+      toast.error(eventResult.error);
+      setIsLoading(false);
+      return;
+    }
+
+    const currentEvent = eventResult.data.event;
+    setEventItem(currentEvent);
+
+    let groupsResult = await adminGetGroups(token, eventId);
+    if (!groupsResult.ok) {
+      toast.error(groupsResult.error);
+      setIsLoading(false);
+      return;
+    }
+
+    let currentGroups = groupsResult.data.groups;
+
+    if (!currentEvent.grouped && currentGroups.length === 0) {
+      const createGroupResult = await adminCreateGroup(
+        token,
+        eventId,
+        DEFAULT_GROUP_NAME,
+      );
+      if (createGroupResult.ok) {
+        currentGroups = [createGroupResult.data.group];
+      }
+    }
+
+    setGroups(currentGroups);
+
+    const groupId = currentGroups[0]?.id ?? null;
+    setSelectedGroupId(groupId);
+
+    if (groupId !== null) {
+      await loadPeople(groupId);
+    } else {
+      setPeople([]);
+    }
+
+    setIsLoading(false);
+  }, [token, eventId, loadPeople]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  const handleGroupChange = async (groupId: number) => {
+    setSelectedGroupId(groupId);
+    await loadPeople(groupId);
+  };
+
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success("Link copiado!");
+    } catch {
+      toast.error("Não foi possível copiar o link.");
+    }
+  };
+
+  const handleCreateGroup = async (formEvent: React.FormEvent<HTMLFormElement>) => {
+    formEvent.preventDefault();
+    if (!token || isLocked) return;
+
+    setIsSaving(true);
+    const result = await adminCreateGroup(token, eventId, groupName.trim());
+    if (!result.ok) {
+      toast.error(result.error);
+      setIsSaving(false);
+      return;
+    }
+
+    toast.success("Grupo criado.");
+    setGroupName("");
+    setIsSaving(false);
+    await loadData();
+  };
+
+  const handleCreatePerson = async (
+    formEvent: React.FormEvent<HTMLFormElement>,
+  ) => {
+    formEvent.preventDefault();
+    if (!token || isLocked || selectedGroupId === null) return;
+
+    setIsSaving(true);
+    const result = await adminCreatePerson(token, eventId, selectedGroupId, {
+      name: personName.trim(),
+      phone_number: personPhone.trim(),
+    });
+
+    if (!result.ok) {
+      toast.error(result.error);
+      setIsSaving(false);
+      return;
+    }
+
+    toast.success("Participante adicionado.");
+    setPersonName("");
+    setPersonPhone("");
+    setIsSaving(false);
+    await loadPeople(selectedGroupId);
+  };
+
+  const handleRunDraw = async () => {
+    if (!token) return;
+
+    setIsSaving(true);
+    const result = await adminUpdateEvent(token, eventId, { status: true });
+    if (!result.ok) {
+      toast.error(result.error);
+      setIsSaving(false);
+      return;
+    }
+
+    toast.success("Sorteio realizado!");
+    setIsSaving(false);
+    await loadData();
+  };
+
+  const handleResetDraw = async () => {
+    if (!token) return;
+
+    setIsSaving(true);
+    const result = await adminUpdateEvent(token, eventId, { status: false });
+    if (!result.ok) {
+      toast.error(result.error);
+      setIsSaving(false);
+      return;
+    }
+
+    toast.success("Sorteio resetado.");
+    setIsSaving(false);
+    await loadData();
+  };
+
+  const handleDeleteEvent = async () => {
+    if (!token) return;
+
+    setIsSaving(true);
+    const result = await adminDeleteEvent(token, eventId);
+    if (!result.ok) {
+      toast.error(result.error);
+      setIsSaving(false);
+      return;
+    }
+
+    toast.success("Evento excluído.");
+    router.push("/admin/events");
+  };
+
+  const handleDeleteGroup = async (groupId: number) => {
+    if (!token || isLocked) return;
+
+    setIsSaving(true);
+    const result = await adminDeleteGroup(token, eventId, groupId);
+    if (!result.ok) {
+      toast.error(result.error);
+      setIsSaving(false);
+      return;
+    }
+
+    toast.success("Grupo removido.");
+    setIsSaving(false);
+    await loadData();
+  };
+
+  const handleDeletePerson = async (personId: number) => {
+    if (!token || isLocked || selectedGroupId === null) return;
+
+    setIsSaving(true);
+    const result = await adminDeletePerson(
+      token,
+      eventId,
+      selectedGroupId,
+      personId,
+    );
+    if (!result.ok) {
+      toast.error(result.error);
+      setIsSaving(false);
+      return;
+    }
+
+    toast.success("Participante removido.");
+    setIsSaving(false);
+    await loadPeople(selectedGroupId);
+  };
+
+  if (isLoading || !eventItem) {
+    return (
+      <AdminShell title="Carregando evento...">
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </AdminShell>
+    );
+  }
+
+  return (
+    <AdminShell title={eventItem.title}>
+      <div className="flex flex-wrap items-center gap-2">
+        <Button variant="ghost" size="sm" asChild>
+          <Link href="/admin/events">← Voltar aos eventos</Link>
+        </Button>
+        <Badge variant={eventItem.status ? "default" : "secondary"}>
+          {eventItem.status ? "Sorteado" : "Pendente"}
+        </Badge>
+        {eventItem.grouped && <Badge variant="outline">Com grupos</Badge>}
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Informações do evento</CardTitle>
+          <CardDescription>{eventItem.description}</CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Input readOnly value={shareUrl} className="font-mono text-xs" />
+          <Button variant="outline" onClick={handleCopyLink}>
+            <CopyIcon />
+            Copiar link
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Ações do sorteio</CardTitle>
+          <CardDescription>
+            {isLocked
+              ? "O sorteio já foi realizado. Resetar para editar participantes."
+              : "Realize o sorteio quando todos os participantes estiverem cadastrados."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-wrap gap-2">
+          {!isLocked ? (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button disabled={isSaving || groups.length === 0}>
+                  Realizar sorteio
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Confirmar sorteio</DialogTitle>
+                  <DialogDescription>
+                    Esta ação não pode ser desfeita sem resetar. Deseja sortear
+                    agora?
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DialogClose>
+                  <DialogClose asChild>
+                    <Button onClick={handleRunDraw}>Confirmar</Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          ) : (
+            <Dialog>
+              <DialogTrigger asChild>
+                <Button variant="outline" disabled={isSaving}>
+                  Resetar sorteio
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Resetar sorteio</DialogTitle>
+                  <DialogDescription>
+                    Isso apagará os pares sorteados e permitirá editar
+                    participantes novamente.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button variant="outline">Cancelar</Button>
+                  </DialogClose>
+                  <DialogClose asChild>
+                    <Button onClick={handleResetDraw}>Confirmar</Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="destructive" disabled={isSaving}>
+                Excluir evento
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Excluir evento</DialogTitle>
+                <DialogDescription>
+                  Esta ação é permanente e removerá grupos e participantes.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <DialogClose asChild>
+                  <Button variant="outline">Cancelar</Button>
+                </DialogClose>
+                <DialogClose asChild>
+                  <Button variant="destructive" onClick={handleDeleteEvent}>
+                    Excluir
+                  </Button>
+                </DialogClose>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </CardContent>
+      </Card>
+
+      {eventItem.grouped && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Grupos</CardTitle>
+            <CardDescription>
+              Participantes só sorteiam pessoas de outros grupos.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {!isLocked && (
+              <form onSubmit={handleCreateGroup} className="flex flex-col gap-3 sm:flex-row">
+                <Input
+                  placeholder="Nome do grupo"
+                  value={groupName}
+                  onChange={(event) => setGroupName(event.target.value)}
+                  required
+                  disabled={isSaving}
+                />
+                <Button type="submit" disabled={isSaving}>
+                  <PlusIcon />
+                  Adicionar grupo
+                </Button>
+              </form>
+            )}
+
+            {groups.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Crie pelo menos um grupo antes de adicionar participantes.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-2">
+                {groups.map((group) => (
+                  <div key={group.id} className="flex items-center gap-1">
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant={
+                        selectedGroupId === group.id ? "default" : "outline"
+                      }
+                      onClick={() => handleGroupChange(group.id)}
+                    >
+                      {group.name}
+                    </Button>
+                    {!isLocked && groups.length > 1 && (
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        onClick={() => handleDeleteGroup(group.id)}
+                        disabled={isSaving}
+                      >
+                        <Trash2Icon />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      <Separator />
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Participantes</CardTitle>
+          <CardDescription>
+            {selectedGroupId === null
+              ? "Selecione ou crie um grupo para adicionar participantes."
+              : "Telefone será usado na página pública para revelar o sorteio."}
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!isLocked && selectedGroupId !== null && (
+            <form
+              onSubmit={handleCreatePerson}
+              className="grid gap-3 sm:grid-cols-2"
+            >
+              <div className="space-y-2">
+                <Label htmlFor="person_name">Nome</Label>
+                <Input
+                  id="person_name"
+                  value={personName}
+                  onChange={(event) => setPersonName(event.target.value)}
+                  required
+                  disabled={isSaving}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="person_phone">Telefone</Label>
+                <Input
+                  id="person_phone"
+                  type="tel"
+                  value={personPhone}
+                  onChange={(event) => setPersonPhone(event.target.value)}
+                  required
+                  disabled={isSaving}
+                />
+              </div>
+              <Button
+                type="submit"
+                className="sm:col-span-2 sm:w-fit"
+                disabled={isSaving}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2Icon className="animate-spin" />
+                    Salvando...
+                  </>
+                ) : (
+                  <>
+                    <PlusIcon />
+                    Adicionar participante
+                  </>
+                )}
+              </Button>
+            </form>
+          )}
+
+          {people.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhum participante neste grupo.
+            </p>
+          ) : (
+            <ul className="divide-y rounded-lg border">
+              {people.map((person) => (
+                <li
+                  key={person.id}
+                  className="flex items-center justify-between gap-3 px-4 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="font-medium">{person.name}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {person.phone_number}
+                    </p>
+                  </div>
+                  {!isLocked && (
+                    <Button
+                      type="button"
+                      size="icon-sm"
+                      variant="ghost"
+                      onClick={() => handleDeletePerson(person.id)}
+                      disabled={isSaving}
+                    >
+                      <Trash2Icon />
+                    </Button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </AdminShell>
+  );
+}

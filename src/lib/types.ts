@@ -1,6 +1,6 @@
-import type { Event } from "@/generated/prisma/client";
+import type { Event, EventGroup, EventPeople } from "@/generated/prisma/client";
 
-export type { Event };
+export type { Event, EventGroup, EventPeople };
 
 export type PersonPublic = {
   id: number;

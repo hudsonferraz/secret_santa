@@ -75,3 +75,127 @@ export async function searchPersonByPhone(
     `/api/people/${eventId}/search?${query.toString()}`,
   );
 }
+
+export async function adminLogin(password: string) {
+  return apiRequest<{ token: string }>("/api/admin/login", {
+    method: "POST",
+    body: { password },
+  });
+}
+
+export async function adminPing(token: string) {
+  return apiRequest<{ pong: boolean; admin: boolean }>("/api/admin/ping", {
+    token,
+  });
+}
+
+export async function adminGetEvents(token: string) {
+  return apiRequest<{ events: import("@/lib/types").Event[] }>(
+    "/api/admin/events",
+    { token },
+  );
+}
+
+export async function adminCreateEvent(
+  token: string,
+  data: { title: string; description: string; grouped: boolean },
+) {
+  return apiRequest<{ event: import("@/lib/types").Event }>(
+    "/api/admin/events",
+    { method: "POST", body: data, token },
+  );
+}
+
+export async function adminGetEvent(token: string, eventId: number) {
+  return apiRequest<{ event: import("@/lib/types").Event }>(
+    `/api/admin/events/${eventId}`,
+    { token },
+  );
+}
+
+export async function adminUpdateEvent(
+  token: string,
+  eventId: number,
+  data: {
+    status?: boolean;
+    title?: string;
+    description?: string;
+    grouped?: boolean;
+  },
+) {
+  return apiRequest<{ event: import("@/lib/types").Event }>(
+    `/api/admin/events/${eventId}`,
+    { method: "PUT", body: data, token },
+  );
+}
+
+export async function adminDeleteEvent(token: string, eventId: number) {
+  return apiRequest<{ event: import("@/lib/types").Event }>(
+    `/api/admin/events/${eventId}`,
+    { method: "DELETE", token },
+  );
+}
+
+export async function adminGetGroups(token: string, eventId: number) {
+  return apiRequest<{ groups: import("@/lib/types").EventGroup[] }>(
+    `/api/admin/groups/${eventId}`,
+    { token },
+  );
+}
+
+export async function adminCreateGroup(
+  token: string,
+  eventId: number,
+  name: string,
+) {
+  return apiRequest<{ group: import("@/lib/types").EventGroup }>(
+    `/api/admin/groups/${eventId}`,
+    { method: "POST", body: { name }, token },
+  );
+}
+
+export async function adminDeleteGroup(
+  token: string,
+  eventId: number,
+  groupId: number,
+) {
+  return apiRequest<{ group: import("@/lib/types").EventGroup }>(
+    `/api/admin/groups/${eventId}/${groupId}`,
+    { method: "DELETE", token },
+  );
+}
+
+export async function adminGetPeople(
+  token: string,
+  eventId: number,
+  groupId: number,
+) {
+  return apiRequest<{ people: import("@/lib/types").EventPeople[] }>(
+    `/api/admin/people/${eventId}/${groupId}`,
+    { token },
+  );
+}
+
+export async function adminCreatePerson(
+  token: string,
+  eventId: number,
+  groupId: number,
+  data: { name: string; phone_number: string },
+) {
+  return apiRequest<{ person: import("@/lib/types").EventPeople }>(
+    `/api/admin/people/${eventId}/${groupId}`,
+    { method: "POST", body: data, token },
+  );
+}
+
+export async function adminDeletePerson(
+  token: string,
+  eventId: number,
+  groupId: number,
+  personId: number,
+) {
+  return apiRequest<{ person: import("@/lib/types").EventPeople }>(
+    `/api/admin/people/${eventId}/${groupId}/${personId}`,
+    { method: "DELETE", token },
+  );
+}
