@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as events from "@/server/services/events";
 import { isAuthorized } from "@/lib/auth";
+import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
@@ -74,6 +75,9 @@ export async function PUT(
     const eventItem = await events.getOne(eventId);
     return NextResponse.json({ event: eventItem });
   }
+
+  const lockedResponse = await getEventEditBlockResponse(eventId);
+  if (lockedResponse) return lockedResponse;
 
   const updatedEvent = await events.update(eventId, body.data);
   if (updatedEvent) return NextResponse.json({ event: updatedEvent });

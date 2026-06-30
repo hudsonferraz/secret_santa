@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as people from "@/server/services/people";
 import { isAuthorized } from "@/lib/auth";
+import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
@@ -30,6 +31,11 @@ export async function POST(
   }
 
   const { idEvent, idGroup } = await params;
+  const eventId = Number(idEvent);
+
+  const lockedResponse = await getEventEditBlockResponse(eventId);
+  if (lockedResponse) return lockedResponse;
+
   const addPersonSchema = z.object({
     name: z.string(),
   });

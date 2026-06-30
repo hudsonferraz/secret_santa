@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as groups from "@/server/services/groups";
 import { isAuthorized } from "@/lib/auth";
+import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
@@ -30,6 +31,11 @@ export async function PUT(
   }
 
   const { idEvent, id } = await params;
+  const eventId = Number(idEvent);
+
+  const lockedResponse = await getEventEditBlockResponse(eventId);
+  if (lockedResponse) return lockedResponse;
+
   const updateGroupSchema = z.object({ name: z.string().optional() });
   const body = updateGroupSchema.safeParse(
     await request.json().catch(() => null),
@@ -56,6 +62,11 @@ export async function DELETE(
   }
 
   const { idEvent, id } = await params;
+  const eventId = Number(idEvent);
+
+  const lockedResponse = await getEventEditBlockResponse(eventId);
+  if (lockedResponse) return lockedResponse;
+
   const deletedGroup = await groups.deleteGroup({
     id: Number(id),
     id_event: Number(idEvent),

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as people from "@/server/services/people";
 import { isAuthorized } from "@/lib/auth";
+import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
@@ -35,10 +36,13 @@ export async function PUT(
   }
 
   const { idEvent, idGroup, id } = await params;
+  const eventId = Number(idEvent);
+
+  const lockedResponse = await getEventEditBlockResponse(eventId);
+  if (lockedResponse) return lockedResponse;
+
   const updatePersonSchema = z.object({
     name: z.string().optional(),
-    phone_number: z.string().optional(),
-    matched: z.string().optional(),
   });
   const body = updatePersonSchema.safeParse(
     await request.json().catch(() => null),
@@ -74,6 +78,11 @@ export async function DELETE(
   }
 
   const { idEvent, idGroup, id } = await params;
+  const eventId = Number(idEvent);
+
+  const lockedResponse = await getEventEditBlockResponse(eventId);
+  if (lockedResponse) return lockedResponse;
+
   const deletedPerson = await people.deletePerson({
     id: Number(id),
     id_event: Number(idEvent),

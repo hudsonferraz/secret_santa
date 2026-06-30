@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as groups from "@/server/services/groups";
 import { isAuthorized } from "@/lib/auth";
+import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
@@ -27,6 +28,11 @@ export async function POST(
   }
 
   const { idEvent } = await params;
+  const eventId = Number(idEvent);
+
+  const lockedResponse = await getEventEditBlockResponse(eventId);
+  if (lockedResponse) return lockedResponse;
+
   const addGroupSchema = z.object({ name: z.string() });
   const body = addGroupSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
