@@ -1,12 +1,11 @@
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@/generated/prisma/client";
+import { prisma } from "@/lib/prisma";
 import * as events from "./events";
-
-const prisma = new PrismaClient();
 
 export const getAll = async (id_event: number) => {
   try {
     return await prisma.eventGroup.findMany({ where: { id_event } });
-  } catch (error) {
+  } catch {
     return false;
   }
 };
@@ -15,7 +14,7 @@ type GetOneFilters = { id: number; id_event: number };
 export const getOne = async (filters: GetOneFilters) => {
   try {
     return await prisma.eventGroup.findFirst({ where: filters });
-  } catch (error) {
+  } catch {
     return false;
   }
 };
@@ -29,7 +28,7 @@ export const addGroup = async (data: GroupCreateData) => {
     if (!eventItem) return false;
 
     return await prisma.eventGroup.create({ data });
-  } catch (error) {
+  } catch {
     return false;
   }
 };
@@ -42,7 +41,7 @@ export const updateGroup = async (
 ) => {
   try {
     return await prisma.eventGroup.update({ where: filters, data });
-  } catch (error) {
+  } catch {
     return false;
   }
 };
@@ -51,7 +50,7 @@ type DeleteFilters = { id: number; id_event?: number };
 export const deleteGroup = async (filters: DeleteFilters) => {
   try {
     return await prisma.eventGroup.delete({ where: filters });
-  } catch (error) {
+  } catch {
     return false;
   }
 };

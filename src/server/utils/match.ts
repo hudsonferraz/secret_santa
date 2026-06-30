@@ -3,7 +3,7 @@ export const encryptMatch = (id: number): string => {
 };
 
 export const decryptMatch = (match: string): number => {
-  let idString: string = match
+  const idString: string = match
     .replace(`${process.env.DEFAULT_TOKEN}`, "")
     .replace(`${process.env.DEFAULT_TOKEN}`, "");
   return parseInt(idString);

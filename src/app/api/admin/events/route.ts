@@ -1,0 +1,36 @@
+import { NextRequest, NextResponse } from "next/server";
+import * as events from "@/server/services/events";
+import { isAuthorized } from "@/lib/auth";
+import { z } from "zod";
+
+export async function GET(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
+  }
+
+  const items = await events.getAll();
+  if (items) return NextResponse.json({ events: items });
+
+  return NextResponse.json({ error: "Ocorreu um erro" }, { status: 400 });
+}
+
+export async function POST(request: NextRequest) {
+  if (!isAuthorized(request)) {
+    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
+  }
+
+  const addEventSchema = z.object({
+    title: z.string(),
+    description: z.string(),
+    grouped: z.boolean(),
+  });
+  const body = addEventSchema.safeParse(await request.json().catch(() => null));
+  if (!body.success) {
+    return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+  }
+
+  const newEvent = await events.add(body.data);
+  if (newEvent) return NextResponse.json({ event: newEvent }, { status: 201 });
+
+  return NextResponse.json({ error: "Ocorreu um erro" }, { status: 400 });
+}
