@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
-  CopyIcon,
   Loader2Icon,
   PlusIcon,
   Trash2Icon,
@@ -21,8 +20,13 @@ import {
   adminUpdateEvent,
 } from "@/lib/apiClient";
 import type { Event, EventGroup, EventPeople } from "@/lib/types";
-import { buildRevealPath, buildRevealUrl } from "@/lib/revealUrl";
-import { copyTextToClipboard } from "@/lib/clipboard";
+import { buildRevealPath } from "@/lib/revealUrl";
+import {
+  DEFAULT_SHARE_MESSAGE_TEMPLATE_ID,
+  SHARE_MESSAGE_TEMPLATES,
+  type ShareMessageTemplateId,
+} from "@/lib/shareMessage";
+import { ParticipantShareActions } from "@/components/admin/ParticipantShareActions";
 import { loadAdminEventDetail } from "@/lib/loadAdminEventDetail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -93,6 +97,8 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
   const [groupName, setGroupName] = useState("");
   const [personName, setPersonName] = useState("");
+  const [shareMessageTemplateId, setShareMessageTemplateId] =
+    useState<ShareMessageTemplateId>(DEFAULT_SHARE_MESSAGE_TEMPLATE_ID);
 
   const isLocked = eventItem?.status === true;
 
@@ -143,19 +149,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const handleGroupChange = async (groupId: number) => {
     setSelectedGroupId(groupId);
     await loadPeople(groupId);
-  };
-
-  const handleCopyRevealLink = async (revealToken: string) => {
-    const origin =
-      typeof window === "undefined" ? "" : window.location.origin;
-    const copied = await copyTextToClipboard(
-      buildRevealUrl(revealToken, origin),
-    );
-    if (copied) {
-      toast.success("Link pessoal copiado!");
-    } else {
-      toast.error("Não foi possível copiar o link.");
-    }
   };
 
   const handleCreateGroup = async (formEvent: React.FormEvent<HTMLFormElement>) => {
@@ -510,6 +503,28 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          {people.length > 0 && (
+            <div className="space-y-2">
+              <Label htmlFor="share_message_template">Modelo da mensagem</Label>
+              <select
+                id="share_message_template"
+                value={shareMessageTemplateId}
+                onChange={(event) =>
+                  setShareMessageTemplateId(
+                    event.target.value as ShareMessageTemplateId,
+                  )
+                }
+                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {SHARE_MESSAGE_TEMPLATES.map((template) => (
+                  <option key={template.id} value={template.id}>
+                    {template.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           {!isLocked && selectedGroupId !== null && (
             <form onSubmit={handleCreatePerson} className="flex flex-col gap-3 sm:flex-row">
               <div className="flex-1 space-y-2">
@@ -559,30 +574,24 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                       {buildRevealPath(person.reveal_token)}
                     </p>
                   </div>
-                  <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      className="min-h-11 flex-1 sm:min-h-0 sm:flex-none"
-                      onClick={() =>
-                        handleCopyRevealLink(person.reveal_token)
-                      }
-                    >
-                      <CopyIcon />
-                      Copiar link
-                    </Button>
+                  <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
+                    <ParticipantShareActions
+                      participantName={person.name}
+                      revealToken={person.reveal_token}
+                      eventTitle={eventItem.title}
+                      templateId={shareMessageTemplateId}
+                    />
                     {!isLocked && (
                       <Button
                         type="button"
-                        size="icon"
+                        size="sm"
                         variant="ghost"
-                        className={MOBILE_ICON_BUTTON_CLASS}
-                        aria-label={`Remover ${person.name}`}
+                        className="min-h-11 self-stretch sm:min-h-0 sm:self-auto"
                         onClick={() => handleDeletePerson(person.id)}
                         disabled={isSaving}
                       >
                         <Trash2Icon />
+                        Remover
                       </Button>
                     )}
                   </div>
