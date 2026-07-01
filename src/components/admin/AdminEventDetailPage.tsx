@@ -24,6 +24,7 @@ import {
 } from "@/lib/apiClient";
 import type { Event, EventGroup, EventPeople } from "@/lib/types";
 import { buildRevealPath, buildRevealUrl } from "@/lib/revealUrl";
+import { copyTextToClipboard } from "@/lib/clipboard";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +56,8 @@ type AdminEventDetailPageProps = {
 };
 
 type PageState = "loading" | "ready" | "not_found";
+
+const MOBILE_ICON_BUTTON_CLASS = "size-11 shrink-0 sm:size-8";
 
 export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const router = useRouter();
@@ -150,20 +153,21 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const handleCopyRevealLink = async (revealToken: string) => {
     const origin =
       typeof window === "undefined" ? "" : window.location.origin;
-    try {
-      await navigator.clipboard.writeText(
-        buildRevealUrl(revealToken, origin),
-      );
+    const copied = await copyTextToClipboard(
+      buildRevealUrl(revealToken, origin),
+    );
+    if (copied) {
       toast.success("Link pessoal copiado!");
-    } catch {
+    } else {
       toast.error("Não foi possível copiar o link.");
     }
   };
+
   const handleCopyEventLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
+    const copied = await copyTextToClipboard(shareUrl);
+    if (copied) {
       toast.success("Link do evento copiado!");
-    } catch {
+    } else {
       toast.error("Não foi possível copiar o link.");
     }
   };
@@ -334,7 +338,11 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
         </CardHeader>
         <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <Input readOnly value={shareUrl} className="font-mono text-xs" />
-          <Button variant="outline" onClick={handleCopyEventLink}>
+          <Button
+            variant="outline"
+            className="w-full sm:w-auto"
+            onClick={handleCopyEventLink}
+          >
             <CopyIcon />
             Copiar link
           </Button>
@@ -350,11 +358,14 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
               : "Realize o sorteio quando todos os participantes estiverem cadastrados."}
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-wrap gap-2">
+        <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
           {!isLocked ? (
             <Dialog>
               <DialogTrigger asChild>
-                <Button disabled={isSaving || groups.length === 0}>
+                <Button
+                  className="w-full sm:w-auto"
+                  disabled={isSaving || groups.length === 0}
+                >
                   Realizar sorteio
                 </Button>
               </DialogTrigger>
@@ -379,7 +390,11 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
           ) : (
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" disabled={isSaving}>
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto"
+                  disabled={isSaving}
+                >
                   Resetar sorteio
                 </Button>
               </DialogTrigger>
@@ -405,7 +420,11 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="destructive" disabled={isSaving}>
+              <Button
+                variant="destructive"
+                className="w-full sm:w-auto"
+                disabled={isSaving}
+              >
                 Excluir evento
               </Button>
             </DialogTrigger>
@@ -477,8 +496,10 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                     {!isLocked && groups.length > 1 && (
                       <Button
                         type="button"
-                        size="icon-sm"
+                        size="icon"
                         variant="ghost"
+                        className={MOBILE_ICON_BUTTON_CLASS}
+                        aria-label={`Remover grupo ${group.name}`}
                         onClick={() => handleDeleteGroup(group.id)}
                         disabled={isSaving}
                       >
@@ -519,7 +540,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
               </div>
               <Button
                 type="submit"
-                className="sm:self-end"
+                className="w-full sm:w-auto sm:self-end"
                 disabled={isSaving}
               >
                 {isSaving ? (
@@ -546,7 +567,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
               {people.map((person) => (
                 <li
                   key={person.id}
-                  className="flex items-center justify-between gap-3 px-4 py-3"
+                  className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:py-3"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="font-medium">{person.name}</p>
@@ -554,23 +575,26 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                       {buildRevealPath(person.reveal_token)}
                     </p>
                   </div>
-                  <div className="flex shrink-0 items-center gap-1">
+                  <div className="flex w-full shrink-0 items-center gap-2 sm:w-auto">
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
+                      className="min-h-11 flex-1 sm:min-h-0 sm:flex-none"
                       onClick={() =>
                         handleCopyRevealLink(person.reveal_token)
                       }
                     >
                       <CopyIcon />
-                      Link
+                      Copiar link
                     </Button>
                     {!isLocked && (
                       <Button
                         type="button"
-                        size="icon-sm"
+                        size="icon"
                         variant="ghost"
+                        className={MOBILE_ICON_BUTTON_CLASS}
+                        aria-label={`Remover ${person.name}`}
                         onClick={() => handleDeletePerson(person.id)}
                         disabled={isSaving}
                       >

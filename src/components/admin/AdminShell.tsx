@@ -25,11 +25,16 @@ export function AdminShell({
               {title}
             </h1>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <Button variant="ghost" size="sm" asChild>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            <Button variant="ghost" size="sm" className="min-h-11 sm:min-h-0" asChild>
               <Link href="/">Início</Link>
             </Button>
-            <Button variant="outline" size="sm" onClick={logout}>
+            <Button
+              variant="outline"
+              size="sm"
+              className="min-h-11 sm:min-h-0"
+              onClick={logout}
+            >
               Sair
             </Button>
           </div>

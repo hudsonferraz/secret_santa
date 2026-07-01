@@ -74,7 +74,8 @@ export default function HomePage() {
             <CardHeader>
               <CardTitle>Entrar em um evento</CardTitle>
               <CardDescription>
-                Cole o código ou o link que o organizador compartilhou com você.
+                Cole o código do evento ou o link pessoal que o organizador
+                enviou para você.
               </CardDescription>
             </CardHeader>
             <CardContent>
