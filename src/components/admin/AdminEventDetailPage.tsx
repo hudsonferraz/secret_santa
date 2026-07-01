@@ -3,16 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  Loader2Icon,
-  PlusIcon,
-  Trash2Icon,
-} from "lucide-react";
+import { Trash2Icon } from "lucide-react";
 import { toast } from "sonner";
 import { AdminEventMobileActions } from "@/components/admin/AdminEventMobileActions";
-import { DrawPreviewPanel } from "@/components/admin/DrawPreviewPanel";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { CollapsibleSection } from "@/components/admin/CollapsibleSection";
+import { applyEventDetailLoadResult } from "@/components/admin/event-detail/applyEventDetailLoadResult";
+import { AdminEventDrawActions } from "@/components/admin/event-detail/AdminEventDrawActions";
+import { AdminEventGroupSelector } from "@/components/admin/event-detail/AdminEventGroupSelector";
+import { AdminEventHeader } from "@/components/admin/event-detail/AdminEventHeader";
+import { AdminParticipantForm } from "@/components/admin/event-detail/AdminParticipantForm";
+import { AdminParticipantList } from "@/components/admin/event-detail/AdminParticipantList";
+import type { AdminEventDetailPageState } from "@/components/admin/event-detail/constants";
+import { ShareMessageTemplateSelector } from "@/components/admin/event-detail/ShareMessageTemplateSelector";
 import {
   adminCreateGroup,
   adminCreatePerson,
@@ -24,17 +27,12 @@ import {
   adminUpdateEvent,
 } from "@/lib/apiClient";
 import type { DrawPreview, Event, EventGroup, EventPeople } from "@/lib/types";
-import { buildRevealPath } from "@/lib/revealUrl";
 import {
   DEFAULT_SHARE_MESSAGE_TEMPLATE_ID,
-  SHARE_MESSAGE_TEMPLATES,
   type ShareMessageTemplateId,
 } from "@/lib/shareMessage";
-import { ParticipantShareActions } from "@/components/admin/ParticipantShareActions";
 import { loadAdminEventDetail } from "@/lib/loadAdminEventDetail";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -42,58 +40,12 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type AdminEventDetailPageProps = {
   eventId: number;
 };
-
-type PageState = "loading" | "ready" | "not_found";
-
-const MOBILE_ICON_BUTTON_CLASS = "size-11 shrink-0 sm:size-8";
-const MANY_PARTICIPANTS_THRESHOLD = 6;
-
-function applyEventDetailLoadResult(
-  result: Awaited<ReturnType<typeof loadAdminEventDetail>>,
-  setters: {
-    setEventItem: (event: Event | null) => void;
-    setGroups: (groups: EventGroup[]) => void;
-    setPeople: (people: EventPeople[]) => void;
-    setSelectedGroupId: (groupId: number | null) => void;
-    setPageState: (state: PageState) => void;
-    seedPeopleByGroupId?: (groupId: number, people: EventPeople[]) => void;
-  },
-) {
-  if (result.status === "not_found") {
-    if (result.error) {
-      toast.error(result.error);
-    }
-    setters.setPageState("not_found");
-    return;
-  }
-
-  setters.setEventItem(result.event);
-  setters.setGroups(result.groups);
-  setters.setPeople(result.people);
-  setters.setSelectedGroupId(result.selectedGroupId);
-  if (result.selectedGroupId !== null) {
-    setters.seedPeopleByGroupId?.(result.selectedGroupId, result.people);
-  }
-  setters.setPageState("ready");
-}
 
 export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const router = useRouter();
@@ -105,7 +57,8 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     Record<number, EventPeople[]>
   >({});
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [pageState, setPageState] = useState<PageState>("loading");
+  const [pageState, setPageState] =
+    useState<AdminEventDetailPageState>("loading");
   const [isSaving, setIsSaving] = useState(false);
 
   const [groupName, setGroupName] = useState("");
@@ -226,12 +179,9 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
       setPeople((currentPeople) => updatePeopleList(currentPeople));
     }
 
-    const result = await adminUpdatePerson(
-      eventId,
-      groupId,
-      personId,
-      { link_sent: linkSent },
-    );
+    const result = await adminUpdatePerson(eventId, groupId, personId, {
+      link_sent: linkSent,
+    });
 
     if (!result.ok) {
       toast.error(result.error);
@@ -239,7 +189,9 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     }
   };
 
-  const handleCreateGroup = async (formEvent: React.FormEvent<HTMLFormElement>) => {
+  const handleCreateGroup = async (
+    formEvent: React.FormEvent<HTMLFormElement>,
+  ) => {
     formEvent.preventDefault();
     if (isLocked) return;
 
@@ -358,180 +310,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     refreshDrawPreview();
   };
 
-  const renderShareTemplateSelector = (
-    participantCount: number,
-    sentCount: number,
-  ) => {
-    if (participantCount === 0) {
-      return null;
-    }
-
-    return (
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="space-y-2 sm:flex-1">
-          <Label htmlFor="share_message_template">Modelo da mensagem</Label>
-          <select
-            id="share_message_template"
-            value={shareMessageTemplateId}
-            onChange={(event) =>
-              setShareMessageTemplateId(
-                event.target.value as ShareMessageTemplateId,
-              )
-            }
-            className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {SHARE_MESSAGE_TEMPLATES.map((template) => (
-              <option key={template.id} value={template.id}>
-                {template.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <p className="text-sm text-muted-foreground">
-          {sentCount} de {participantCount} links enviados
-        </p>
-      </div>
-    );
-  };
-
-  const renderAddParticipantForm = (className?: string) => {
-    if (isLocked || selectedGroupId === null) {
-      return null;
-    }
-
-    return (
-      <form
-        onSubmit={handleCreatePerson}
-        className={className ?? "flex flex-col gap-3 sm:flex-row"}
-      >
-        <div className="flex-1 space-y-2">
-          <Label htmlFor="person_name">Nome</Label>
-          <Input
-            id="person_name"
-            value={personName}
-            onChange={(event) => setPersonName(event.target.value)}
-            required
-            disabled={isSaving}
-          />
-        </div>
-        <Button
-          type="submit"
-          className="w-full sm:w-auto sm:self-end"
-          disabled={isSaving}
-        >
-          {isSaving ? (
-            <>
-              <Loader2Icon className="animate-spin" />
-              Salvando...
-            </>
-          ) : (
-            <>
-              <PlusIcon />
-              Adicionar participante
-            </>
-          )}
-        </Button>
-      </form>
-    );
-  };
-
-  const renderParticipantList = (
-    groupPeople: EventPeople[],
-    groupId: number,
-  ) => {
-    if (groupPeople.length === 0) {
-      return (
-        <p className="text-sm text-muted-foreground">
-          Nenhum participante neste grupo.
-        </p>
-      );
-    }
-
-    const sentCount = groupPeople.filter((person) => person.link_sent).length;
-    const listContent = (
-      <ul className="divide-y rounded-lg border">
-        {groupPeople.map((person) => (
-          <li
-            key={person.id}
-            className={`flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:py-3 ${
-              person.link_sent ? "bg-muted/30" : ""
-            }`}
-          >
-            <div className="flex min-w-0 flex-1 gap-3">
-              <div className="flex min-h-11 items-start pt-0.5">
-                <Checkbox
-                  id={`link-sent-${groupId}-${person.id}`}
-                  checked={person.link_sent}
-                  onCheckedChange={(checked) => {
-                    void handleToggleLinkSent(
-                      person.id,
-                      checked === true,
-                      groupId,
-                    );
-                  }}
-                  disabled={isSaving}
-                  aria-label={`Marcar ${person.name} como enviado`}
-                  className="size-5"
-                />
-              </div>
-              <div className="min-w-0 flex-1 space-y-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Label
-                    htmlFor={`link-sent-${groupId}-${person.id}`}
-                    className="cursor-pointer font-medium"
-                  >
-                    {person.name}
-                  </Label>
-                  {person.link_sent ? (
-                    <Badge variant="secondary">Enviado</Badge>
-                  ) : null}
-                </div>
-                <p className="truncate text-xs text-muted-foreground">
-                  {buildRevealPath(person.reveal_token)}
-                </p>
-              </div>
-            </div>
-            <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
-              <ParticipantShareActions
-                participantName={person.name}
-                revealToken={person.reveal_token}
-                eventTitle={eventItem!.title}
-                templateId={shareMessageTemplateId}
-              />
-              {!isLocked ? (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  className="min-h-11 self-stretch sm:min-h-0 sm:self-auto"
-                  onClick={() => handleDeletePerson(person.id, groupId)}
-                  disabled={isSaving}
-                >
-                  <Trash2Icon />
-                  Remover
-                </Button>
-              ) : null}
-            </div>
-          </li>
-        ))}
-      </ul>
-    );
-
-    if (groupPeople.length >= MANY_PARTICIPANTS_THRESHOLD) {
-      return (
-        <CollapsibleSection
-          title={`Participantes (${groupPeople.length})`}
-          summary={`${sentCount} de ${groupPeople.length} links enviados`}
-          defaultOpen
-        >
-          {listContent}
-        </CollapsibleSection>
-      );
-    }
-
-    return listContent;
-  };
-
   if (pageState === "loading") {
     return (
       <AdminShell title="Carregando evento...">
@@ -565,217 +343,44 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const canRunDraw =
     !isLocked && groups.length > 0 && drawPreview?.canDraw === true;
 
+  const allParticipants = Object.values(peopleByGroupId).flat();
+  const totalParticipantCount =
+    allParticipants.length > 0 ? allParticipants.length : people.length;
+  const totalSentCount =
+    allParticipants.length > 0
+      ? allParticipants.filter((person) => person.link_sent).length
+      : people.filter((person) => person.link_sent).length;
+
   return (
     <AdminShell title={eventItem.title}>
       <div className="flex flex-col gap-6 pb-24 sm:pb-0">
-        <div className="flex flex-wrap items-center gap-2">
-          <Button variant="ghost" size="sm" asChild>
-            <Link href="/admin/events">← Voltar aos eventos</Link>
-          </Button>
-          <Badge variant={eventItem.status ? "default" : "secondary"}>
-            {eventItem.status ? "Sorteado" : "Pendente"}
-          </Badge>
-          {eventItem.grouped ? (
-            <Badge variant="outline">Com grupos</Badge>
-          ) : null}
-        </div>
+        <AdminEventHeader event={eventItem} isLocked={isLocked} />
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Informações do evento</CardTitle>
-            <CardDescription>{eventItem.description}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              {isLocked
-                ? "Envie o link pessoal de cada participante. Esses links são privados e mostram apenas o sorteado daquela pessoa."
-                : "Depois do sorteio, copie e envie o link pessoal de cada participante abaixo."}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Ações do sorteio</CardTitle>
-            <CardDescription>
-              {isLocked
-                ? "O sorteio já foi realizado. Resetar para editar participantes."
-                : "Realize o sorteio quando todos os participantes estiverem cadastrados."}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-4">
-            {!isLocked ? (
-              <DrawPreviewPanel
-                eventId={eventId}
-                isLocked={isLocked}
-                refreshKey={drawPreviewKey}
-                onPreviewChange={setDrawPreview}
-              />
-            ) : null}
-
-            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
-            {!isLocked ? (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    className="hidden w-full sm:inline-flex sm:w-auto"
-                    disabled={isSaving || !canRunDraw}
-                  >
-                    Realizar sorteio
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Confirmar sorteio</DialogTitle>
-                    <DialogDescription>
-                      Esta ação não pode ser desfeita sem resetar. Deseja
-                      sortear agora?
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="outline">Cancelar</Button>
-                    </DialogClose>
-                    <DialogClose asChild>
-                      <Button onClick={handleRunDraw}>Confirmar</Button>
-                    </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            ) : (
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="w-full sm:w-auto"
-                    disabled={isSaving}
-                  >
-                    Resetar sorteio
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Resetar sorteio</DialogTitle>
-                    <DialogDescription>
-                      Isso apagará os pares sorteados e permitirá editar
-                      participantes novamente.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <DialogClose asChild>
-                      <Button variant="outline">Cancelar</Button>
-                    </DialogClose>
-                    <DialogClose asChild>
-                      <Button onClick={handleResetDraw}>Confirmar</Button>
-                    </DialogClose>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            )}
-
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button
-                  variant="destructive"
-                  className="w-full sm:w-auto"
-                  disabled={isSaving}
-                >
-                  Excluir evento
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Excluir evento</DialogTitle>
-                  <DialogDescription>
-                    Esta ação é permanente e removerá grupos e participantes.
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <DialogClose asChild>
-                    <Button variant="outline">Cancelar</Button>
-                  </DialogClose>
-                  <DialogClose asChild>
-                    <Button variant="destructive" onClick={handleDeleteEvent}>
-                      Excluir
-                    </Button>
-                  </DialogClose>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-            </div>
-          </CardContent>
-        </Card>
+        <AdminEventDrawActions
+          eventId={eventId}
+          isLocked={isLocked}
+          isSaving={isSaving}
+          canRunDraw={canRunDraw}
+          drawPreviewKey={drawPreviewKey}
+          onPreviewChange={setDrawPreview}
+          onRunDraw={handleRunDraw}
+          onResetDraw={handleResetDraw}
+          onDeleteEvent={handleDeleteEvent}
+        />
 
         {eventItem.grouped ? (
-          <Card>
-            <CardHeader>
-              <CardTitle>Grupos</CardTitle>
-              <CardDescription>
-                Participantes só sorteiam pessoas de outros grupos.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {!isLocked ? (
-                <form
-                  onSubmit={handleCreateGroup}
-                  className="flex flex-col gap-3 sm:flex-row"
-                >
-                  <Input
-                    placeholder="Nome do grupo"
-                    value={groupName}
-                    onChange={(event) => setGroupName(event.target.value)}
-                    required
-                    disabled={isSaving}
-                  />
-                  <Button type="submit" disabled={isSaving}>
-                    <PlusIcon />
-                    Adicionar grupo
-                  </Button>
-                </form>
-              ) : null}
-
-              {groups.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Crie pelo menos um grupo antes de adicionar participantes.
-                </p>
-              ) : useGroupAccordion ? (
-                <p className="text-sm text-muted-foreground">
-                  Expanda um grupo abaixo para ver e enviar links aos
-                  participantes.
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {groups.map((group) => (
-                    <div key={group.id} className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant={
-                          selectedGroupId === group.id ? "default" : "outline"
-                        }
-                        onClick={() => handleGroupChange(group.id)}
-                      >
-                        {group.name}
-                      </Button>
-                      {!isLocked && groups.length > 1 ? (
-                        <Button
-                          type="button"
-                          size="icon"
-                          variant="ghost"
-                          className={MOBILE_ICON_BUTTON_CLASS}
-                          aria-label={`Remover grupo ${group.name}`}
-                          onClick={() => handleDeleteGroup(group.id)}
-                          disabled={isSaving}
-                        >
-                          <Trash2Icon />
-                        </Button>
-                      ) : null}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+          <AdminEventGroupSelector
+            groups={groups}
+            selectedGroupId={selectedGroupId}
+            isLocked={isLocked}
+            isSaving={isSaving}
+            useGroupAccordion={useGroupAccordion}
+            groupName={groupName}
+            onGroupNameChange={setGroupName}
+            onCreateGroup={handleCreateGroup}
+            onGroupChange={handleGroupChange}
+            onDeleteGroup={handleDeleteGroup}
+          />
         ) : null}
 
         <Separator />
@@ -794,16 +399,12 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
           <CardContent className="space-y-4">
             {useGroupAccordion ? (
               <div className="space-y-3">
-                {renderShareTemplateSelector(
-                  Object.values(peopleByGroupId).reduce(
-                    (total, groupPeople) => total + groupPeople.length,
-                    0,
-                  ) || people.length,
-                  Object.values(peopleByGroupId)
-                    .flat()
-                    .filter((person) => person.link_sent).length ||
-                    people.filter((person) => person.link_sent).length,
-                )}
+                <ShareMessageTemplateSelector
+                  participantCount={totalParticipantCount}
+                  sentCount={totalSentCount}
+                  templateId={shareMessageTemplateId}
+                  onTemplateChange={setShareMessageTemplateId}
+                />
                 {groups.map((group) => {
                   const groupPeople = peopleByGroupId[group.id];
                   const participantCount = groupPeople?.length ?? 0;
@@ -829,15 +430,34 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                       }}
                     >
                       <div className="space-y-4">
-                        {!isLocked && selectedGroupId === group.id
-                          ? renderAddParticipantForm("hidden sm:flex flex-col gap-3 sm:flex-row")
-                          : null}
+                        {!isLocked && selectedGroupId === group.id ? (
+                          <AdminParticipantForm
+                            personName={personName}
+                            isSaving={isSaving}
+                            onPersonNameChange={setPersonName}
+                            onSubmit={handleCreatePerson}
+                            className="hidden sm:flex flex-col gap-3 sm:flex-row"
+                          />
+                        ) : null}
                         {groupPeople === undefined ? (
                           <p className="text-sm text-muted-foreground">
                             Carregando participantes...
                           </p>
                         ) : (
-                          renderParticipantList(groupPeople, group.id)
+                          <AdminParticipantList
+                            people={groupPeople}
+                            groupId={group.id}
+                            eventTitle={eventItem.title}
+                            isLocked={isLocked}
+                            isSaving={isSaving}
+                            shareMessageTemplateId={shareMessageTemplateId}
+                            onShareMessageTemplateChange={
+                              setShareMessageTemplateId
+                            }
+                            showShareTemplateSelector={false}
+                            onToggleLinkSent={handleToggleLinkSent}
+                            onDeletePerson={handleDeletePerson}
+                          />
                         )}
                         {!isLocked && groups.length > 1 ? (
                           <Button
@@ -859,12 +479,28 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
               </div>
             ) : (
               <>
-                {renderShareTemplateSelector(
-                  people.length,
-                  people.filter((person) => person.link_sent).length,
-                )}
-                {renderAddParticipantForm("hidden sm:flex flex-col gap-3 sm:flex-row")}
-                {renderParticipantList(people, selectedGroupId ?? 0)}
+                {!isLocked && selectedGroupId !== null ? (
+                  <AdminParticipantForm
+                    personName={personName}
+                    isSaving={isSaving}
+                    onPersonNameChange={setPersonName}
+                    onSubmit={handleCreatePerson}
+                    className="hidden sm:flex flex-col gap-3 sm:flex-row"
+                  />
+                ) : null}
+                {selectedGroupId !== null ? (
+                  <AdminParticipantList
+                    people={people}
+                    groupId={selectedGroupId}
+                    eventTitle={eventItem.title}
+                    isLocked={isLocked}
+                    isSaving={isSaving}
+                    shareMessageTemplateId={shareMessageTemplateId}
+                    onShareMessageTemplateChange={setShareMessageTemplateId}
+                    onToggleLinkSent={handleToggleLinkSent}
+                    onDeletePerson={handleDeletePerson}
+                  />
+                ) : null}
               </>
             )}
           </CardContent>
