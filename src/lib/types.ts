@@ -32,6 +32,11 @@ export type GroupDrawSummary = {
   participantCount: number;
 };
 
+export type DrawPreviewWarning = {
+  id: string;
+  message: string;
+};
+
 export type DrawPreview = {
   participantCount: number;
   groupCount: number;
@@ -40,7 +45,7 @@ export type DrawPreview = {
   canDraw: boolean;
   groupedDrawPossible: boolean;
   blockingError: string | null;
-  warnings: string[];
+  warnings: DrawPreviewWarning[];
   groups: GroupDrawSummary[];
 };
 

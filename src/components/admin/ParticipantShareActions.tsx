@@ -7,7 +7,6 @@ import { buildRevealUrl } from "@/lib/revealUrl";
 import {
   buildParticipantShareMessage,
   buildWhatsAppShareUrl,
-  type ShareMessageTemplateId,
 } from "@/lib/shareMessage";
 import { usePublicAppOrigin } from "@/lib/usePublicAppOrigin";
 import { Button } from "@/components/ui/button";
@@ -15,24 +14,19 @@ import { Button } from "@/components/ui/button";
 type ParticipantShareActionsProps = {
   participantName: string;
   revealToken: string;
-  eventTitle: string;
-  templateId: ShareMessageTemplateId;
 };
 
 export function ParticipantShareActions({
   participantName,
   revealToken,
-  eventTitle,
-  templateId,
 }: ParticipantShareActionsProps) {
   const origin = usePublicAppOrigin();
 
   const buildShareContent = (resolvedOrigin: string) => {
     const revealUrl = buildRevealUrl(revealToken, resolvedOrigin);
-    const shareMessage = buildParticipantShareMessage(templateId, {
+    const shareMessage = buildParticipantShareMessage({
       participantName,
       revealUrl,
-      eventTitle,
     });
 
     return { revealUrl, shareMessage };

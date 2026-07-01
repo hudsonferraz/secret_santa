@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
+import { RevealMatchCard } from "@/components/reveal/RevealMatchCard";
 import {
   Card,
   CardContent,
@@ -69,19 +70,10 @@ export default async function RevealPage({ params }: RevealPageProps) {
         </header>
 
         {result.kind === "revealed" ? (
-          <Card className="w-full">
-            <CardHeader>
-              <CardTitle>Olá, {result.personName}</CardTitle>
-              <CardDescription>
-                Guarde este nome só para você. Boa sorte na escolha do presente!
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-center text-3xl font-semibold tracking-tight">
-                {result.matchName}
-              </p>
-            </CardContent>
-          </Card>
+          <RevealMatchCard
+            personName={result.personName}
+            matchName={result.matchName}
+          />
         ) : result.kind === "draw_pending" ? (
           <Card className="w-full">
             <CardHeader>

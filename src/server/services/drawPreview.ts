@@ -10,6 +10,11 @@ export type GroupDrawSummary = {
   participantCount: number;
 };
 
+export type DrawPreviewWarning = {
+  id: string;
+  message: string;
+};
+
 export type DrawPreview = {
   participantCount: number;
   groupCount: number;
@@ -18,7 +23,7 @@ export type DrawPreview = {
   canDraw: boolean;
   groupedDrawPossible: boolean;
   blockingError: string | null;
-  warnings: string[];
+  warnings: DrawPreviewWarning[];
   groups: GroupDrawSummary[];
 };
 
@@ -27,7 +32,7 @@ export function buildDrawPreview(
   eventGroups: { id: number; name: string }[],
   grouped: boolean,
 ): DrawPreview {
-  const warnings: string[] = [];
+  const warnings: DrawPreviewWarning[] = [];
   const participantCount = people.length;
 
   const participantCountByGroupId = new Map<number, number>();
@@ -46,12 +51,18 @@ export function buildDrawPreview(
 
   for (const group of groupSummaries) {
     if (group.participantCount === 0) {
-      warnings.push(`O grupo "${group.name}" não tem participantes.`);
+      warnings.push({
+        id: `empty-group-${group.id}`,
+        message: `O grupo "${group.name}" não tem participantes.`,
+      });
       continue;
     }
 
     if (grouped && group.participantCount === 1) {
-      warnings.push(`O grupo "${group.name}" tem apenas 1 participante.`);
+      warnings.push({
+        id: `single-participant-group-${group.id}`,
+        message: `O grupo "${group.name}" tem apenas 1 participante.`,
+      });
     }
   }
 
@@ -67,9 +78,10 @@ export function buildDrawPreview(
     );
 
     if (largestGroup.participantCount > participantCount / 2) {
-      warnings.push(
-        `O grupo "${largestGroup.name}" concentra mais da metade dos participantes (${largestGroup.participantCount} de ${participantCount}).`,
-      );
+      warnings.push({
+        id: `dominant-group-${largestGroup.id}`,
+        message: `O grupo "${largestGroup.name}" concentra mais da metade dos participantes (${largestGroup.participantCount} de ${participantCount}).`,
+      });
     }
   }
 

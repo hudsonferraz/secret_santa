@@ -129,11 +129,11 @@ export function DrawPreviewPanel({
           <ul className="space-y-2">
             {preview.warnings.map((warning) => (
               <li
-                key={warning}
+                key={warning.id}
                 className="flex gap-2 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm"
               >
                 <AlertTriangleIcon className="mt-0.5 size-4 shrink-0 text-amber-600" />
-                <span>{warning}</span>
+                <span>{warning.message}</span>
               </li>
             ))}
           </ul>

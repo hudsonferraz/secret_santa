@@ -15,8 +15,8 @@ import { AdminEventHeader } from "@/components/admin/event-detail/AdminEventHead
 import { AdminParticipantForm } from "@/components/admin/event-detail/AdminParticipantForm";
 import { AdminParticipantList } from "@/components/admin/event-detail/AdminParticipantList";
 import type { AdminEventDetailPageState } from "@/components/admin/event-detail/constants";
-import { ShareMessageTemplateSelector } from "@/components/admin/event-detail/ShareMessageTemplateSelector";
 import { formatGroupShareSummary } from "@/components/admin/event-detail/formatGroupShareSummary";
+import { ParticipantLinkProgress } from "@/components/admin/event-detail/ParticipantLinkProgress";
 import {
   adminCreateGroup,
   adminCreatePerson,
@@ -35,10 +35,6 @@ import type {
   EventPeople,
   EventPeopleSummary,
 } from "@/lib/types";
-import {
-  DEFAULT_SHARE_MESSAGE_TEMPLATE_ID,
-  type ShareMessageTemplateId,
-} from "@/lib/shareMessage";
 import { loadAdminEventDetail } from "@/lib/loadAdminEventDetail";
 import { Button } from "@/components/ui/button";
 import {
@@ -71,8 +67,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
   const [groupName, setGroupName] = useState("");
   const [personName, setPersonName] = useState("");
-  const [shareMessageTemplateId, setShareMessageTemplateId] =
-    useState<ShareMessageTemplateId>(DEFAULT_SHARE_MESSAGE_TEMPLATE_ID);
   const [drawPreview, setDrawPreview] = useState<DrawPreview | null>(null);
   const [drawPreviewKey, setDrawPreviewKey] = useState(0);
   const [peopleSummary, setPeopleSummary] = useState<EventPeopleSummary | null>(
@@ -474,11 +468,9 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
           <CardContent className="space-y-4">
             {useGroupAccordion ? (
               <div className="space-y-3">
-                <ShareMessageTemplateSelector
+                <ParticipantLinkProgress
                   participantCount={totalParticipantCount}
                   sentCount={totalSentCount}
-                  templateId={shareMessageTemplateId}
-                  onTemplateChange={setShareMessageTemplateId}
                 />
                 {groups.map((group) => {
                   const groupPeople = peopleByGroupId[group.id];
@@ -518,14 +510,8 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                           <AdminParticipantList
                             people={groupPeople}
                             groupId={group.id}
-                            eventTitle={eventItem.title}
                             isLocked={isLocked}
                             isSaving={isSaving}
-                            shareMessageTemplateId={shareMessageTemplateId}
-                            onShareMessageTemplateChange={
-                              setShareMessageTemplateId
-                            }
-                            showShareTemplateSelector={false}
                             onToggleLinkSent={handleToggleLinkSent}
                             onDeletePerson={handleDeletePerson}
                           />
@@ -563,11 +549,9 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                   <AdminParticipantList
                     people={people}
                     groupId={selectedGroupId}
-                    eventTitle={eventItem.title}
                     isLocked={isLocked}
                     isSaving={isSaving}
-                    shareMessageTemplateId={shareMessageTemplateId}
-                    onShareMessageTemplateChange={setShareMessageTemplateId}
+                    showLinkProgress={isLocked}
                     onToggleLinkSent={handleToggleLinkSent}
                     onDeletePerson={handleDeletePerson}
                   />

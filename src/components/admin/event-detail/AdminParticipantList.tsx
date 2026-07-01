@@ -3,23 +3,19 @@ import { CollapsibleSection } from "@/components/admin/CollapsibleSection";
 import { ParticipantShareActions } from "@/components/admin/ParticipantShareActions";
 import type { EventPeople } from "@/lib/types";
 import { buildRevealPath } from "@/lib/revealUrl";
-import type { ShareMessageTemplateId } from "@/lib/shareMessage";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { MANY_PARTICIPANTS_THRESHOLD } from "./constants";
-import { ShareMessageTemplateSelector } from "./ShareMessageTemplateSelector";
+import { ParticipantLinkProgress } from "./ParticipantLinkProgress";
 
 type AdminParticipantListProps = {
   people: EventPeople[];
   groupId: number;
-  eventTitle: string;
   isLocked: boolean;
   isSaving: boolean;
-  shareMessageTemplateId: ShareMessageTemplateId;
-  onShareMessageTemplateChange: (templateId: ShareMessageTemplateId) => void;
-  showShareTemplateSelector?: boolean;
+  showLinkProgress?: boolean;
   onToggleLinkSent: (
     personId: number,
     linkSent: boolean,
@@ -31,12 +27,9 @@ type AdminParticipantListProps = {
 export function AdminParticipantList({
   people,
   groupId,
-  eventTitle,
   isLocked,
   isSaving,
-  shareMessageTemplateId,
-  onShareMessageTemplateChange,
-  showShareTemplateSelector = true,
+  showLinkProgress = false,
   onToggleLinkSent,
   onDeletePerson,
 }: AdminParticipantListProps) {
@@ -93,8 +86,6 @@ export function AdminParticipantList({
             <ParticipantShareActions
               participantName={person.name}
               revealToken={person.reveal_token}
-              eventTitle={eventTitle}
-              templateId={shareMessageTemplateId}
             />
             {!isLocked ? (
               <Button
@@ -128,17 +119,15 @@ export function AdminParticipantList({
       listContent
     );
 
-  if (!showShareTemplateSelector) {
+  if (!showLinkProgress) {
     return participantList;
   }
 
   return (
     <div className="space-y-4">
-      <ShareMessageTemplateSelector
+      <ParticipantLinkProgress
         participantCount={people.length}
         sentCount={sentCount}
-        templateId={shareMessageTemplateId}
-        onTemplateChange={onShareMessageTemplateChange}
       />
       {participantList}
     </div>
