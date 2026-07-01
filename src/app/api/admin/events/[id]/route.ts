@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import * as events from "@/server/services/events";
 import { getOrganizerIdOrDeny } from "@/lib/auth";
 import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
-import { z } from "zod";
+import { updateEventSchema } from "@/server/validation/adminInput";
 
 export async function GET(
   request: NextRequest,
@@ -28,12 +28,6 @@ export async function PUT(
   const { id } = await params;
   const eventId = Number(id);
 
-  const updateEventSchema = z.object({
-    status: z.boolean().optional(),
-    title: z.string().optional(),
-    description: z.string().optional(),
-    grouped: z.boolean().optional(),
-  });
   const body = updateEventSchema.safeParse(
     await request.json().catch(() => null),
   );

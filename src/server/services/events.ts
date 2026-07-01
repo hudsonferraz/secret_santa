@@ -1,9 +1,18 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
+import type { PublicEvent } from "@/lib/types";
 import { encryptMatch } from "../utils/match";
 import { findSecretSantaAssignment, getDrawValidationError } from "./matching";
 
 export type RunDrawResult = { ok: true } | { ok: false; error: string };
+
+const PUBLIC_EVENT_SELECT = {
+  id: true,
+  title: true,
+  description: true,
+  status: true,
+  grouped: true,
+} as const;
 
 export const getAll = async (organizerId: number) => {
   try {
@@ -16,9 +25,20 @@ export const getAll = async (organizerId: number) => {
   }
 };
 
-export const getOnePublic = async (id: number) => {
+export const getOnePublic = async (
+  id: number,
+): Promise<PublicEvent | false> => {
   try {
-    return await prisma.event.findFirst({ where: { id } });
+    const eventItem = await prisma.event.findFirst({
+      where: { id },
+      select: PUBLIC_EVENT_SELECT,
+    });
+
+    if (!eventItem) {
+      return false;
+    }
+
+    return eventItem;
   } catch {
     return false;
   }

@@ -18,6 +18,14 @@ export type OrganizerProfile = {
   name: string;
 };
 
+export type PublicEvent = {
+  id: number;
+  title: string;
+  description: string;
+  status: boolean;
+  grouped: boolean;
+};
+
 export type ApiErrorResponse = {
   error: string;
 };

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as events from "@/server/services/events";
 import { getOrganizerIdOrDeny } from "@/lib/auth";
-import { z } from "zod";
+import { createEventSchema } from "@/server/validation/adminInput";
 
 export async function GET(request: NextRequest) {
   const organizerId = await getOrganizerIdOrDeny(request);
@@ -17,12 +17,7 @@ export async function POST(request: NextRequest) {
   const organizerId = await getOrganizerIdOrDeny(request);
   if (organizerId instanceof NextResponse) return organizerId;
 
-  const addEventSchema = z.object({
-    title: z.string(),
-    description: z.string(),
-    grouped: z.boolean(),
-  });
-  const body = addEventSchema.safeParse(await request.json().catch(() => null));
+  const body = createEventSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }

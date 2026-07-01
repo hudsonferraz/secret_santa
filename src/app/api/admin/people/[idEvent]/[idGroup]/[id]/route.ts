@@ -5,7 +5,7 @@ import {
   getEventEditBlockResponse,
   getEventOwnershipBlockResponse,
 } from "@/server/guards/eventEditable";
-import { z } from "zod";
+import { updatePersonSchema } from "@/server/validation/adminInput";
 
 export async function GET(
   request: NextRequest,
@@ -50,9 +50,6 @@ export async function PUT(
   const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
   if (lockedResponse) return lockedResponse;
 
-  const updatePersonSchema = z.object({
-    name: z.string().optional(),
-  });
   const body = updatePersonSchema.safeParse(
     await request.json().catch(() => null),
   );
