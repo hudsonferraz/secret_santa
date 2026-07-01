@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="560">
+  <rect width="100%" height="100%" fill="#0a0a0a"/>
+  <text x="32" y="48" fill="#f3f4f6" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="700">secret_santa architecture</text>
+  <text x="32" y="96" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">Next.js App Router (web + API)</text>
+  <text x="32" y="124" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  |-- Public: landing, /r/:token reveal page</text>
+  <text x="32" y="152" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  |-- Admin UI: events, groups, participants, sharing</text>
+  <text x="32" y="180" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  '-- API routes: /api/admin/*, /api/reveal/:token</text>
+  <text x="32" y="208" fill="#9ca3af" font-family="Consolas, monospace" font-size="16"></text>
+  <text x="32" y="236" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">Server services</text>
+  <text x="32" y="264" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  |-- JWT session cookie (organizer auth)</text>
+  <text x="32" y="292" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  |-- Matching engine (grouped derangement + validation)</text>
+  <text x="32" y="320" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  |-- Draw preview + people summary aggregates</text>
+  <text x="32" y="348" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  '-- Reveal lookup by bearer token only</text>
+  <text x="32" y="376" fill="#9ca3af" font-family="Consolas, monospace" font-size="16"></text>
+  <text x="32" y="404" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">PostgreSQL (Prisma)</text>
+  <text x="32" y="432" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  Organizer, Event, EventGroup, EventPeople</text>
+  <text x="32" y="460" fill="#9ca3af" font-family="Consolas, monospace" font-size="16">  matched_person_id FK, reveal_token, link_sent</text>
+  <text x="32" y="488" fill="#6b7280" font-family="Consolas, monospace" font-size="14">Schema changes: npm run db:migrate locally / db:migrate on deploy</text>
+</svg>
