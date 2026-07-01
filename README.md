@@ -4,6 +4,7 @@
 ![React 19](https://img.shields.io/badge/React-19-61dafb)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-blue)
 ![Prisma](https://img.shields.io/badge/Prisma-PostgreSQL-2D3748)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-black)](https://hfo-amigo-secreto.vercel.app/)
 
 **Private Secret Santa organizer** built for real family use. Create an event, add participants, optionally split them into groups, run a valid draw, and send each person a private reveal link over WhatsApp.
 
@@ -12,6 +13,13 @@ This is a **personal, useful, and portfolio project**. I built it to replace the
 **What it does:** organizer creates event → adds groups/participants → validates and runs draw → sends one private link per participant.  
 **How it's built:** Next.js App Router, React, TypeScript, Prisma/PostgreSQL, JWT cookies, Zod validation, Vitest.  
 **Scope and limits:** organizer-managed sharing, no participant accounts, private links are bearer tokens — see [Operational assumptions](#operational-assumptions) and [design decisions](docs/design-decisions.md).
+
+## Live links
+
+| Service | URL |
+|---------|-----|
+| Web (Vercel) | [https://hfo-amigo-secreto.vercel.app](https://hfo-amigo-secreto.vercel.app/) |
+| Organizer area | [https://hfo-amigo-secreto.vercel.app/admin](https://hfo-amigo-secreto.vercel.app/admin) |
 
 ![Landing page](docs/images/landing.png)
 
@@ -98,11 +106,11 @@ If an existing database was first created with `prisma db push`, baseline it bef
 
 ## Deploy
 
-Vercel (or any Node host) + PostgreSQL (Neon works well).
+Production: [https://hfo-amigo-secreto.vercel.app](https://hfo-amigo-secreto.vercel.app/) (Vercel + Neon PostgreSQL).
 
-1. Set env vars: `DATABASE_URL`, `SESSION_SECRET`, `NEXT_PUBLIC_APP_URL` (your public origin).
+1. Set env vars: `DATABASE_URL`, `SESSION_SECRET`, `NEXT_PUBLIC_APP_URL` (e.g. `https://hfo-amigo-secreto.vercel.app`).
 2. Run migrations against production: `npm run db:migrate`.
-3. Build and deploy: `npm run build` then `npm start`.
+3. Build and deploy: `npm run build` then `npm start` (or connect the repo to Vercel for automatic deploys).
 
 `postinstall` runs `prisma generate` only — migrations are **not** applied automatically during deploy.
 
