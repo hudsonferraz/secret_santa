@@ -41,8 +41,24 @@ export function AdminEventsPage() {
   }, []);
 
   useEffect(() => {
-    loadEvents();
-  }, [loadEvents]);
+    let cancelled = false;
+
+    void (async () => {
+      const result = await adminGetEvents();
+      if (cancelled) return;
+
+      if (result.ok) {
+        setEvents(result.data.events);
+      } else {
+        toast.error(result.error);
+      }
+      setIsLoading(false);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const handleCreateEvent = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

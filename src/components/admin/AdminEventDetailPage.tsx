@@ -17,14 +17,13 @@ import {
   adminDeleteEvent,
   adminDeleteGroup,
   adminDeletePerson,
-  adminGetEvent,
-  adminGetGroups,
   adminGetPeople,
   adminUpdateEvent,
 } from "@/lib/apiClient";
 import type { Event, EventGroup, EventPeople } from "@/lib/types";
 import { buildRevealPath, buildRevealUrl } from "@/lib/revealUrl";
 import { copyTextToClipboard } from "@/lib/clipboard";
+import { loadAdminEventDetail } from "@/lib/loadAdminEventDetail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,8 +48,6 @@ import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const DEFAULT_GROUP_NAME = "Participantes";
-
 type AdminEventDetailPageProps = {
   eventId: number;
 };
@@ -58,6 +55,31 @@ type AdminEventDetailPageProps = {
 type PageState = "loading" | "ready" | "not_found";
 
 const MOBILE_ICON_BUTTON_CLASS = "size-11 shrink-0 sm:size-8";
+
+function applyEventDetailLoadResult(
+  result: Awaited<ReturnType<typeof loadAdminEventDetail>>,
+  setters: {
+    setEventItem: (event: Event | null) => void;
+    setGroups: (groups: EventGroup[]) => void;
+    setPeople: (people: EventPeople[]) => void;
+    setSelectedGroupId: (groupId: number | null) => void;
+    setPageState: (state: PageState) => void;
+  },
+) {
+  if (result.status === "not_found") {
+    if (result.error) {
+      toast.error(result.error);
+    }
+    setters.setPageState("not_found");
+    return;
+  }
+
+  setters.setEventItem(result.event);
+  setters.setGroups(result.groups);
+  setters.setPeople(result.people);
+  setters.setSelectedGroupId(result.selectedGroupId);
+  setters.setPageState("ready");
+}
 
 export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const router = useRouter();
@@ -92,58 +114,36 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   );
 
   const loadData = useCallback(async () => {
-    setPageState("loading");
-
-    const eventResult = await adminGetEvent(eventId);
-    if (!eventResult.ok) {
-      if (eventResult.status === 404) {
-        setPageState("not_found");
-        return;
-      }
-      toast.error(eventResult.error);
-      setPageState("not_found");
-      return;
-    }
-
-    const currentEvent = eventResult.data.event;
-    setEventItem(currentEvent);
-
-    let groupsResult = await adminGetGroups(eventId);
-    if (!groupsResult.ok) {
-      toast.error(groupsResult.error);
-      setPageState("not_found");
-      return;
-    }
-
-    let currentGroups = groupsResult.data.groups;
-
-    if (!currentEvent.grouped && currentGroups.length === 0) {
-      const createGroupResult = await adminCreateGroup(
-        eventId,
-        DEFAULT_GROUP_NAME,
-      );
-      if (createGroupResult.ok) {
-        currentGroups = [createGroupResult.data.group];
-      }
-    }
-
-    setGroups(currentGroups);
-
-    const groupId = currentGroups[0]?.id ?? null;
-    setSelectedGroupId(groupId);
-
-    if (groupId !== null) {
-      await loadPeople(groupId);
-    } else {
-      setPeople([]);
-    }
-
-    setPageState("ready");
-  }, [eventId, loadPeople]);
+    const result = await loadAdminEventDetail(eventId);
+    applyEventDetailLoadResult(result, {
+      setEventItem,
+      setGroups,
+      setPeople,
+      setSelectedGroupId,
+      setPageState,
+    });
+  }, [eventId]);
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    let cancelled = false;
+
+    void (async () => {
+      const result = await loadAdminEventDetail(eventId);
+      if (cancelled) return;
+
+      applyEventDetailLoadResult(result, {
+        setEventItem,
+        setGroups,
+        setPeople,
+        setSelectedGroupId,
+        setPageState,
+      });
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [eventId]);
 
   const handleGroupChange = async (groupId: number) => {
     setSelectedGroupId(groupId);
