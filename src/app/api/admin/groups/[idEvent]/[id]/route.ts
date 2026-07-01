@@ -1,21 +1,31 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as groups from "@/server/services/groups";
-import { isAuthorized } from "@/lib/auth";
-import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
+import { getOrganizerIdOrDeny } from "@/lib/auth";
+import {
+  getEventEditBlockResponse,
+  getEventOwnershipBlockResponse,
+} from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ idEvent: string; id: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent, id } = await params;
+  const eventId = Number(idEvent);
+
+  const ownershipResponse = await getEventOwnershipBlockResponse(
+    eventId,
+    organizerId,
+  );
+  if (ownershipResponse) return ownershipResponse;
+
   const groupItem = await groups.getOne({
     id: Number(id),
-    id_event: Number(idEvent),
+    id_event: eventId,
   });
   if (groupItem) return NextResponse.json({ group: groupItem });
 
@@ -26,14 +36,13 @@ export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ idEvent: string; id: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent, id } = await params;
   const eventId = Number(idEvent);
 
-  const lockedResponse = await getEventEditBlockResponse(eventId);
+  const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
   if (lockedResponse) return lockedResponse;
 
   const updateGroupSchema = z.object({ name: z.string().optional() });
@@ -45,7 +54,7 @@ export async function PUT(
   }
 
   const updatedGroup = await groups.updateGroup(
-    { id: Number(id), id_event: Number(idEvent) },
+    { id: Number(id), id_event: eventId },
     body.data,
   );
   if (updatedGroup) return NextResponse.json({ group: updatedGroup });
@@ -57,19 +66,18 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ idEvent: string; id: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent, id } = await params;
   const eventId = Number(idEvent);
 
-  const lockedResponse = await getEventEditBlockResponse(eventId);
+  const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
   if (lockedResponse) return lockedResponse;
 
   const deletedGroup = await groups.deleteGroup({
     id: Number(id),
-    id_event: Number(idEvent),
+    id_event: eventId,
   });
   if (deletedGroup) return NextResponse.json({ group: deletedGroup });
 

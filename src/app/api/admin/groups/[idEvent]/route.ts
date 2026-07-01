@@ -1,19 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as groups from "@/server/services/groups";
-import { isAuthorized } from "@/lib/auth";
-import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
+import { getOrganizerIdOrDeny } from "@/lib/auth";
+import {
+  getEventEditBlockResponse,
+  getEventOwnershipBlockResponse,
+} from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ idEvent: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent } = await params;
-  const items = await groups.getAll(Number(idEvent));
+  const eventId = Number(idEvent);
+
+  const ownershipResponse = await getEventOwnershipBlockResponse(
+    eventId,
+    organizerId,
+  );
+  if (ownershipResponse) return ownershipResponse;
+
+  const items = await groups.getAll(eventId);
   if (items) return NextResponse.json({ groups: items });
 
   return NextResponse.json({ error: "Ocorreu um erro" }, { status: 400 });
@@ -23,14 +33,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ idEvent: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent } = await params;
   const eventId = Number(idEvent);
 
-  const lockedResponse = await getEventEditBlockResponse(eventId);
+  const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
   if (lockedResponse) return lockedResponse;
 
   const addGroupSchema = z.object({ name: z.string() });
@@ -40,7 +49,7 @@ export async function POST(
   }
 
   const newGroup = await groups.addGroup({
-    id_event: Number(idEvent),
+    id_event: eventId,
     name: body.data.name,
   });
   if (newGroup) return NextResponse.json({ group: newGroup }, { status: 201 });

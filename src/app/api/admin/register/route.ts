@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { authenticateOrganizer } from "@/server/services/organizers";
+import { createOrganizer } from "@/server/services/organizers";
 import {
   clearAuthAttempts,
   getClientIp,
@@ -12,22 +12,23 @@ import { setAdminSessionCookie } from "@/lib/sessionCookie";
 
 export async function POST(request: Request) {
   const clientIp = getClientIp(request);
-  const rateLimit = isAuthRateLimited("login", clientIp);
+  const rateLimit = isAuthRateLimited("register", clientIp);
 
   if (rateLimit.limited) {
     return NextResponse.json(
       {
-        error: `Muitas tentativas de login. Tente novamente em ${rateLimit.retryAfterSeconds} segundos.`,
+        error: `Muitas tentativas de cadastro. Tente novamente em ${rateLimit.retryAfterSeconds} segundos.`,
       },
       { status: 429 },
     );
   }
 
-  const loginSchema = z.object({
+  const registerSchema = z.object({
+    name: z.string(),
     email: z.string(),
     password: z.string(),
   });
-  const body = loginSchema.safeParse(await request.json().catch(() => null));
+  const body = registerSchema.safeParse(await request.json().catch(() => null));
   if (!body.success) {
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
   }
@@ -39,24 +40,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const authResult = await authenticateOrganizer(
-    body.data.email,
-    body.data.password,
-  );
-
-  if (!authResult.ok) {
-    recordFailedAuthAttempt("login", clientIp);
-    return NextResponse.json({ error: authResult.error }, { status: 401 });
+  const createResult = await createOrganizer(body.data);
+  if (!createResult.ok) {
+    recordFailedAuthAttempt("register", clientIp);
+    return NextResponse.json({ error: createResult.error }, { status: 400 });
   }
 
-  clearAuthAttempts("login", clientIp);
+  clearAuthAttempts("register", clientIp);
 
   const sessionToken = await createSessionToken({
-    organizerId: authResult.organizer.id,
-    email: authResult.organizer.email,
-    name: authResult.organizer.name,
+    organizerId: createResult.organizer.id,
+    email: createResult.organizer.email,
+    name: createResult.organizer.name,
   });
-  const response = NextResponse.json({ ok: true });
+  const response = NextResponse.json({ ok: true }, { status: 201 });
   setAdminSessionCookie(response, sessionToken);
 
   return response;

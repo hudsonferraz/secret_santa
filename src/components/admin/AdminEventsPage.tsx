@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Loader2Icon, PlusIcon } from "lucide-react";
 import { toast } from "sonner";
-import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { adminCreateEvent, adminGetEvents } from "@/lib/apiClient";
 import type { Event } from "@/lib/types";
@@ -24,7 +23,6 @@ import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function AdminEventsPage() {
-  const { token } = useAdminAuth();
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
@@ -33,16 +31,14 @@ export function AdminEventsPage() {
   const [grouped, setGrouped] = useState(false);
 
   const loadEvents = useCallback(async () => {
-    if (!token) return;
-
-    const result = await adminGetEvents(token);
+    const result = await adminGetEvents();
     if (result.ok) {
       setEvents(result.data.events);
     } else {
       toast.error(result.error);
     }
     setIsLoading(false);
-  }, [token]);
+  }, []);
 
   useEffect(() => {
     loadEvents();
@@ -50,10 +46,9 @@ export function AdminEventsPage() {
 
   const handleCreateEvent = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!token) return;
 
     setIsCreating(true);
-    const result = await adminCreateEvent(token, {
+    const result = await adminCreateEvent({
       title: title.trim(),
       description: description.trim(),
       grouped,

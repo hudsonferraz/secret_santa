@@ -3,7 +3,6 @@ import type { ApiErrorResponse, ApiResult } from "@/lib/types";
 type RequestOptions = {
   method?: "GET" | "POST" | "PUT" | "DELETE";
   body?: unknown;
-  token?: string;
   signal?: AbortSignal;
 };
 
@@ -11,7 +10,7 @@ export async function apiRequest<T>(
   path: string,
   options: RequestOptions = {},
 ): Promise<ApiResult<T>> {
-  const { method = "GET", body, token, signal } = options;
+  const { method = "GET", body, signal } = options;
 
   const headers: HeadersInit = {
     Accept: "application/json",
@@ -19,10 +18,6 @@ export async function apiRequest<T>(
 
   if (body !== undefined) {
     headers["Content-Type"] = "application/json";
-  }
-
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
   }
 
   let response: Response;
@@ -33,6 +28,7 @@ export async function apiRequest<T>(
       headers,
       body: body !== undefined ? JSON.stringify(body) : undefined,
       signal,
+      credentials: "include",
     });
   } catch {
     return {
@@ -66,45 +62,61 @@ export async function apiRequest<T>(
   };
 }
 
-export async function adminLogin(password: string) {
-  return apiRequest<{ token: string }>("/api/admin/login", {
+export async function adminLogin(email: string, password: string) {
+  return apiRequest<{ ok: true }>("/api/admin/login", {
     method: "POST",
-    body: { password },
+    body: { email, password },
   });
 }
 
-export async function adminPing(token: string) {
-  return apiRequest<{ pong: boolean; admin: boolean }>("/api/admin/ping", {
-    token,
+export async function adminRegister(data: {
+  name: string;
+  email: string;
+  password: string;
+}) {
+  return apiRequest<{ ok: true }>("/api/admin/register", {
+    method: "POST",
+    body: data,
   });
 }
 
-export async function adminGetEvents(token: string) {
+export async function adminLogout() {
+  return apiRequest<{ ok: true }>("/api/admin/logout", {
+    method: "POST",
+  });
+}
+
+export async function adminPing() {
+  return apiRequest<{
+    pong: boolean;
+    organizer: import("@/lib/types").OrganizerProfile;
+  }>("/api/admin/ping");
+}
+
+export async function adminGetEvents() {
   return apiRequest<{ events: import("@/lib/types").Event[] }>(
     "/api/admin/events",
-    { token },
   );
 }
 
-export async function adminCreateEvent(
-  token: string,
-  data: { title: string; description: string; grouped: boolean },
-) {
+export async function adminCreateEvent(data: {
+  title: string;
+  description: string;
+  grouped: boolean;
+}) {
   return apiRequest<{ event: import("@/lib/types").Event }>(
     "/api/admin/events",
-    { method: "POST", body: data, token },
+    { method: "POST", body: data },
   );
 }
 
-export async function adminGetEvent(token: string, eventId: number) {
+export async function adminGetEvent(eventId: number) {
   return apiRequest<{ event: import("@/lib/types").Event }>(
     `/api/admin/events/${eventId}`,
-    { token },
   );
 }
 
 export async function adminUpdateEvent(
-  token: string,
   eventId: number,
   data: {
     status?: boolean;
@@ -115,77 +127,61 @@ export async function adminUpdateEvent(
 ) {
   return apiRequest<{ event: import("@/lib/types").Event }>(
     `/api/admin/events/${eventId}`,
-    { method: "PUT", body: data, token },
+    { method: "PUT", body: data },
   );
 }
 
-export async function adminDeleteEvent(token: string, eventId: number) {
+export async function adminDeleteEvent(eventId: number) {
   return apiRequest<{ event: import("@/lib/types").Event }>(
     `/api/admin/events/${eventId}`,
-    { method: "DELETE", token },
+    { method: "DELETE" },
   );
 }
 
-export async function adminGetGroups(token: string, eventId: number) {
+export async function adminGetGroups(eventId: number) {
   return apiRequest<{ groups: import("@/lib/types").EventGroup[] }>(
     `/api/admin/groups/${eventId}`,
-    { token },
   );
 }
 
-export async function adminCreateGroup(
-  token: string,
-  eventId: number,
-  name: string,
-) {
+export async function adminCreateGroup(eventId: number, name: string) {
   return apiRequest<{ group: import("@/lib/types").EventGroup }>(
     `/api/admin/groups/${eventId}`,
-    { method: "POST", body: { name }, token },
+    { method: "POST", body: { name } },
   );
 }
 
-export async function adminDeleteGroup(
-  token: string,
-  eventId: number,
-  groupId: number,
-) {
+export async function adminDeleteGroup(eventId: number, groupId: number) {
   return apiRequest<{ group: import("@/lib/types").EventGroup }>(
     `/api/admin/groups/${eventId}/${groupId}`,
-    { method: "DELETE", token },
+    { method: "DELETE" },
   );
 }
 
-export async function adminGetPeople(
-  token: string,
-  eventId: number,
-  groupId: number,
-) {
+export async function adminGetPeople(eventId: number, groupId: number) {
   return apiRequest<{ people: import("@/lib/types").EventPeople[] }>(
     `/api/admin/people/${eventId}/${groupId}`,
-    { token },
   );
 }
 
 export async function adminCreatePerson(
-  token: string,
   eventId: number,
   groupId: number,
   data: { name: string },
 ) {
   return apiRequest<{ person: import("@/lib/types").EventPeople }>(
     `/api/admin/people/${eventId}/${groupId}`,
-    { method: "POST", body: data, token },
+    { method: "POST", body: data },
   );
 }
 
 export async function adminDeletePerson(
-  token: string,
   eventId: number,
   groupId: number,
   personId: number,
 ) {
   return apiRequest<{ person: import("@/lib/types").EventPeople }>(
     `/api/admin/people/${eventId}/${groupId}/${personId}`,
-    { method: "DELETE", token },
+    { method: "DELETE" },
   );
 }

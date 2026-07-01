@@ -24,7 +24,7 @@ export const addGroup = async (data: GroupCreateData) => {
   try {
     if (!data.id_event) return false;
 
-    const eventItem = await events.getOne(data.id_event);
+    const eventItem = await events.getOnePublic(data.id_event);
     if (!eventItem) return false;
 
     return await prisma.eventGroup.create({ data });

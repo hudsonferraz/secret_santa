@@ -10,7 +10,6 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useAdminAuth } from "@/components/admin/AdminAuthProvider";
 import { AdminShell } from "@/components/admin/AdminShell";
 import {
   adminCreateGroup,
@@ -59,7 +58,6 @@ type PageState = "loading" | "ready" | "not_found";
 
 export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const router = useRouter();
-  const { token } = useAdminAuth();
 
   const [eventItem, setEventItem] = useState<Event | null>(null);
   const [groups, setGroups] = useState<EventGroup[]>([]);
@@ -80,24 +78,20 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
   const loadPeople = useCallback(
     async (groupId: number) => {
-      if (!token) return;
-
-      const result = await adminGetPeople(token, eventId, groupId);
+      const result = await adminGetPeople(eventId, groupId);
       if (result.ok) {
         setPeople(result.data.people);
       } else {
         toast.error(result.error);
       }
     },
-    [token, eventId],
+    [eventId],
   );
 
   const loadData = useCallback(async () => {
-    if (!token) return;
-
     setPageState("loading");
 
-    const eventResult = await adminGetEvent(token, eventId);
+    const eventResult = await adminGetEvent(eventId);
     if (!eventResult.ok) {
       if (eventResult.status === 404) {
         setPageState("not_found");
@@ -111,7 +105,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     const currentEvent = eventResult.data.event;
     setEventItem(currentEvent);
 
-    let groupsResult = await adminGetGroups(token, eventId);
+    let groupsResult = await adminGetGroups(eventId);
     if (!groupsResult.ok) {
       toast.error(groupsResult.error);
       setPageState("not_found");
@@ -122,7 +116,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
     if (!currentEvent.grouped && currentGroups.length === 0) {
       const createGroupResult = await adminCreateGroup(
-        token,
         eventId,
         DEFAULT_GROUP_NAME,
       );
@@ -143,7 +136,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     }
 
     setPageState("ready");
-  }, [token, eventId, loadPeople]);
+  }, [eventId, loadPeople]);
 
   useEffect(() => {
     loadData();
@@ -177,10 +170,10 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
   const handleCreateGroup = async (formEvent: React.FormEvent<HTMLFormElement>) => {
     formEvent.preventDefault();
-    if (!token || isLocked) return;
+    if (isLocked) return;
 
     setIsSaving(true);
-    const result = await adminCreateGroup(token, eventId, groupName.trim());
+    const result = await adminCreateGroup(eventId, groupName.trim());
     if (!result.ok) {
       toast.error(result.error);
       setIsSaving(false);
@@ -197,10 +190,10 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     formEvent: React.FormEvent<HTMLFormElement>,
   ) => {
     formEvent.preventDefault();
-    if (!token || isLocked || selectedGroupId === null) return;
+    if (isLocked || selectedGroupId === null) return;
 
     setIsSaving(true);
-    const result = await adminCreatePerson(token, eventId, selectedGroupId, {
+    const result = await adminCreatePerson(eventId, selectedGroupId, {
       name: personName.trim(),
     });
 
@@ -217,10 +210,8 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   };
 
   const handleRunDraw = async () => {
-    if (!token) return;
-
     setIsSaving(true);
-    const result = await adminUpdateEvent(token, eventId, { status: true });
+    const result = await adminUpdateEvent(eventId, { status: true });
     if (!result.ok) {
       toast.error(result.error);
       setIsSaving(false);
@@ -233,10 +224,8 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   };
 
   const handleResetDraw = async () => {
-    if (!token) return;
-
     setIsSaving(true);
-    const result = await adminUpdateEvent(token, eventId, { status: false });
+    const result = await adminUpdateEvent(eventId, { status: false });
     if (!result.ok) {
       toast.error(result.error);
       setIsSaving(false);
@@ -249,10 +238,8 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   };
 
   const handleDeleteEvent = async () => {
-    if (!token) return;
-
     setIsSaving(true);
-    const result = await adminDeleteEvent(token, eventId);
+    const result = await adminDeleteEvent(eventId);
     if (!result.ok) {
       toast.error(result.error);
       setIsSaving(false);
@@ -264,10 +251,10 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   };
 
   const handleDeleteGroup = async (groupId: number) => {
-    if (!token || isLocked) return;
+    if (isLocked) return;
 
     setIsSaving(true);
-    const result = await adminDeleteGroup(token, eventId, groupId);
+    const result = await adminDeleteGroup(eventId, groupId);
     if (!result.ok) {
       toast.error(result.error);
       setIsSaving(false);
@@ -280,11 +267,10 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   };
 
   const handleDeletePerson = async (personId: number) => {
-    if (!token || isLocked || selectedGroupId === null) return;
+    if (isLocked || selectedGroupId === null) return;
 
     setIsSaving(true);
     const result = await adminDeletePerson(
-      token,
       eventId,
       selectedGroupId,
       personId,

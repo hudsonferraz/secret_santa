@@ -18,7 +18,7 @@ export async function generateMetadata({
   params,
 }: EventPageProps): Promise<Metadata> {
   const { id } = await params;
-  const eventItem = await events.getOne(Number(id));
+  const eventItem = await events.getOnePublic(Number(id));
 
   if (!eventItem) {
     return {
@@ -45,7 +45,7 @@ export default async function EventPage({ params }: EventPageProps) {
     notFound();
   }
 
-  const eventItem = await events.getOne(eventId);
+  const eventItem = await events.getOnePublic(eventId);
 
   if (!eventItem) {
     notFound();

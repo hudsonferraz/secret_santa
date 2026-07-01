@@ -7,7 +7,7 @@ export async function GET(
 ) {
   const { id } = await params;
 
-  const eventItem = await events.getOne(Number(id));
+  const eventItem = await events.getOnePublic(Number(id));
   if (eventItem) return NextResponse.json({ event: eventItem });
 
   return NextResponse.json({ error: "Ocorreu um erro" }, { status: 404 });

@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as people from "@/server/services/people";
-import { isAuthorized } from "@/lib/auth";
-import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
+import { getOrganizerIdOrDeny } from "@/lib/auth";
+import {
+  getEventEditBlockResponse,
+  getEventOwnershipBlockResponse,
+} from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
@@ -10,14 +13,21 @@ export async function GET(
     params,
   }: { params: Promise<{ idEvent: string; idGroup: string; id: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent, idGroup, id } = await params;
+  const eventId = Number(idEvent);
+
+  const ownershipResponse = await getEventOwnershipBlockResponse(
+    eventId,
+    organizerId,
+  );
+  if (ownershipResponse) return ownershipResponse;
+
   const personItem = await people.getOne({
     id: Number(id),
-    id_event: Number(idEvent),
+    id_event: eventId,
     id_group: Number(idGroup),
   });
   if (personItem) return NextResponse.json({ person: personItem });
@@ -31,14 +41,13 @@ export async function PUT(
     params,
   }: { params: Promise<{ idEvent: string; idGroup: string; id: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent, idGroup, id } = await params;
   const eventId = Number(idEvent);
 
-  const lockedResponse = await getEventEditBlockResponse(eventId);
+  const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
   if (lockedResponse) return lockedResponse;
 
   const updatePersonSchema = z.object({
@@ -52,14 +61,14 @@ export async function PUT(
   }
 
   const updatedPerson = await people.updatePerson(
-    { id: Number(id), id_event: Number(idEvent), id_group: Number(idGroup) },
+    { id: Number(id), id_event: eventId, id_group: Number(idGroup) },
     body.data,
   );
 
   if (updatedPerson) {
     const personItem = await people.getOne({
       id: Number(id),
-      id_event: Number(idEvent),
+      id_event: eventId,
     });
     return NextResponse.json({ person: personItem });
   }
@@ -73,19 +82,18 @@ export async function DELETE(
     params,
   }: { params: Promise<{ idEvent: string; idGroup: string; id: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent, idGroup, id } = await params;
   const eventId = Number(idEvent);
 
-  const lockedResponse = await getEventEditBlockResponse(eventId);
+  const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
   if (lockedResponse) return lockedResponse;
 
   const deletedPerson = await people.deletePerson({
     id: Number(id),
-    id_event: Number(idEvent),
+    id_event: eventId,
     id_group: Number(idGroup),
   });
   if (deletedPerson) return NextResponse.json({ person: deletedPerson });

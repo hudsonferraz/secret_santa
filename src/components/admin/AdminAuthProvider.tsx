@@ -9,19 +9,14 @@ import {
   useState,
 } from "react";
 import { useRouter } from "next/navigation";
-import { adminPing } from "@/lib/apiClient";
-import {
-  clearAdminToken,
-  getAdminToken,
-  setAdminToken,
-} from "@/lib/adminAuth";
+import { adminLogout, adminPing } from "@/lib/apiClient";
+import type { OrganizerProfile } from "@/lib/types";
 import { Skeleton } from "@/components/ui/skeleton";
 
 type AdminAuthContextValue = {
-  token: string | null;
   isAuthenticated: boolean;
-  login: (token: string) => void;
-  logout: () => void;
+  organizer: OrganizerProfile | null;
+  logout: () => Promise<void>;
 };
 
 const AdminAuthContext = createContext<AdminAuthContextValue | null>(null);
@@ -36,33 +31,21 @@ export function useAdminAuth() {
 
 export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
-  const [token, setTokenState] = useState<string | null>(null);
+  const [organizer, setOrganizer] = useState<OrganizerProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const logout = useCallback(() => {
-    clearAdminToken();
-    setTokenState(null);
+  const logout = useCallback(async () => {
+    await adminLogout();
+    setOrganizer(null);
     router.replace("/admin");
   }, [router]);
 
-  const login = useCallback((newToken: string) => {
-    setAdminToken(newToken);
-    setTokenState(newToken);
-  }, []);
-
   useEffect(() => {
-    const storedToken = getAdminToken();
-    if (!storedToken) {
-      setIsLoading(false);
-      router.replace("/admin");
-      return;
-    }
-
-    adminPing(storedToken).then((result) => {
+    adminPing().then((result) => {
       if (result.ok) {
-        setTokenState(storedToken);
+        setOrganizer(result.data.organizer);
       } else {
-        clearAdminToken();
+        setOrganizer(null);
         router.replace("/admin");
       }
       setIsLoading(false);
@@ -71,12 +54,11 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
 
   const value = useMemo(
     () => ({
-      token,
-      isAuthenticated: Boolean(token),
-      login,
+      isAuthenticated: organizer !== null,
+      organizer,
       logout,
     }),
-    [token, login, logout],
+    [organizer, logout],
   );
 
   if (isLoading) {
@@ -88,7 +70,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!token) {
+  if (!organizer) {
     return null;
   }
 

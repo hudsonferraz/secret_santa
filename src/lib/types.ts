@@ -12,6 +12,12 @@ export type PersonSearchResponse = {
   personMatched?: PersonPublic;
 };
 
+export type OrganizerProfile = {
+  id: number;
+  email: string;
+  name: string;
+};
+
 export type ApiErrorResponse = {
   error: string;
 };

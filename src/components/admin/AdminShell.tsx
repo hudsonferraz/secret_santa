@@ -11,14 +11,16 @@ export function AdminShell({
   children: React.ReactNode;
   title: string;
 }) {
-  const { logout } = useAdminAuth();
+  const { organizer, logout } = useAdminAuth();
 
   return (
     <div className="flex flex-1 flex-col">
       <header className="border-b">
         <div className="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
           <div className="min-w-0">
-            <p className="text-xs text-muted-foreground">Organizador</p>
+            <p className="truncate text-xs text-muted-foreground">
+              {organizer?.name} · {organizer?.email}
+            </p>
             <h1 className="truncate text-lg font-semibold tracking-tight">
               {title}
             </h1>

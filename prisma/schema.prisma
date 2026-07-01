@@ -14,12 +14,23 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Organizer {
+  id            Int      @id @default(autoincrement())
+  email         String   @unique
+  name          String
+  password_hash String
+  created_at    DateTime @default(now())
+  events        Event[]
+}
+
 model Event {
   id Int @id @default(autoincrement())
+  id_organizer Int
   status Boolean @default(false)
   title String
   description String
   grouped Boolean @default(false)
+  organizer Organizer @relation(fields: [id_organizer], references: [id], onDelete: Cascade)
   EventGroup EventGroup[]
   EventPeople EventPeople[]
 }

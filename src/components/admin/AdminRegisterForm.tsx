@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Loader2Icon } from "lucide-react";
 import { toast } from "sonner";
-import { adminLogin, adminPing } from "@/lib/apiClient";
+import { adminPing, adminRegister } from "@/lib/apiClient";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,10 +17,12 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-export function AdminLoginForm() {
+export function AdminRegisterForm() {
   const router = useRouter();
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [isCheckingSession, setIsCheckingSession] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -36,16 +38,22 @@ export function AdminLoginForm() {
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+
+    if (password !== confirmPassword) {
+      toast.error("As senhas não coincidem.");
+      return;
+    }
+
     setIsSubmitting(true);
 
-    const result = await adminLogin(email, password);
+    const result = await adminRegister({ name, email, password });
     if (!result.ok) {
       toast.error(result.error);
       setIsSubmitting(false);
       return;
     }
 
-    toast.success("Login realizado com sucesso.");
+    toast.success("Conta criada com sucesso.");
     router.push("/admin/events");
   };
 
@@ -71,13 +79,25 @@ export function AdminLoginForm() {
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-10 sm:px-6">
         <Card>
           <CardHeader>
-            <CardTitle>Entrar</CardTitle>
+            <CardTitle>Criar conta</CardTitle>
             <CardDescription>
-              Acesse sua conta para gerenciar eventos de amigo secreto.
+              Cadastre-se gratuitamente para organizar seus amigos secretos.
             </CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="name">Nome</Label>
+                <Input
+                  id="name"
+                  name="name"
+                  autoComplete="name"
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  disabled={isSubmitting}
+                  required
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
                 <Input
@@ -97,10 +117,25 @@ export function AdminLoginForm() {
                   id="password"
                   name="password"
                   type="password"
-                  autoComplete="current-password"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   disabled={isSubmitting}
+                  minLength={8}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirmPassword">Confirmar senha</Label>
+                <Input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  value={confirmPassword}
+                  onChange={(event) => setConfirmPassword(event.target.value)}
+                  disabled={isSubmitting}
+                  minLength={8}
                   required
                 />
               </div>
@@ -113,20 +148,20 @@ export function AdminLoginForm() {
                 {isSubmitting ? (
                   <>
                     <Loader2Icon className="animate-spin" />
-                    Entrando...
+                    Criando conta...
                   </>
                 ) : (
-                  "Entrar"
+                  "Criar conta"
                 )}
               </Button>
             </form>
             <p className="mt-4 text-center text-sm text-muted-foreground">
-              Ainda não tem conta?{" "}
+              Já tem conta?{" "}
               <Link
-                href="/admin/register"
+                href="/admin"
                 className="font-medium text-foreground underline-offset-4 hover:underline"
               >
-                Criar conta
+                Entrar
               </Link>
             </p>
           </CardContent>

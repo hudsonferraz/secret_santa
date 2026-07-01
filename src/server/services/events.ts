@@ -5,17 +5,30 @@ import { findSecretSantaAssignment, getDrawValidationError } from "./matching";
 
 export type RunDrawResult = { ok: true } | { ok: false; error: string };
 
-export const getAll = async () => {
+export const getAll = async (organizerId: number) => {
   try {
-    return await prisma.event.findMany();
+    return await prisma.event.findMany({
+      where: { id_organizer: organizerId },
+      orderBy: { id: "desc" },
+    });
   } catch {
     return false;
   }
 };
 
-export const getOne = async (id: number) => {
+export const getOnePublic = async (id: number) => {
   try {
     return await prisma.event.findFirst({ where: { id } });
+  } catch {
+    return false;
+  }
+};
+
+export const getOne = async (id: number, organizerId: number) => {
+  try {
+    return await prisma.event.findFirst({
+      where: { id, id_organizer: organizerId },
+    });
   } catch {
     return false;
   }
@@ -31,16 +44,36 @@ export const add = async (data: EventsCreateData) => {
 };
 
 type EventsUpdateData = Prisma.Args<typeof prisma.event, "update">["data"];
-export const update = async (id: number, data: EventsUpdateData) => {
+export const update = async (id: number, organizerId: number, data: EventsUpdateData) => {
   try {
-    return await prisma.event.update({ where: { id }, data });
+    const updatedCount = await prisma.event.updateMany({
+      where: { id, id_organizer: organizerId },
+      data,
+    });
+
+    if (updatedCount.count === 0) {
+      return false;
+    }
+
+    return await prisma.event.findFirst({
+      where: { id, id_organizer: organizerId },
+    });
   } catch {
     return false;
   }
 };
 
-export const remove = async (id: number) => {
+export const remove = async (id: number, organizerId: number) => {
   try {
+    const eventItem = await prisma.event.findFirst({
+      where: { id, id_organizer: organizerId },
+      select: { id: true },
+    });
+
+    if (!eventItem) {
+      return false;
+    }
+
     return await prisma.$transaction(async (transaction) => {
       await transaction.eventPeople.deleteMany({ where: { id_event: id } });
       await transaction.eventGroup.deleteMany({ where: { id_event: id } });
@@ -51,10 +84,13 @@ export const remove = async (id: number) => {
   }
 };
 
-export const runDraw = async (id: number): Promise<RunDrawResult> => {
+export const runDraw = async (
+  id: number,
+  organizerId: number,
+): Promise<RunDrawResult> => {
   try {
     const eventItem = await prisma.event.findFirst({
-      where: { id },
+      where: { id, id_organizer: organizerId },
       select: { grouped: true, status: true },
     });
 
@@ -111,8 +147,17 @@ export const runDraw = async (id: number): Promise<RunDrawResult> => {
   }
 };
 
-export const resetDraw = async (id: number): Promise<boolean> => {
+export const resetDraw = async (id: number, organizerId: number): Promise<boolean> => {
   try {
+    const eventItem = await prisma.event.findFirst({
+      where: { id, id_organizer: organizerId },
+      select: { id: true },
+    });
+
+    if (!eventItem) {
+      return false;
+    }
+
     await prisma.$transaction(async (transaction) => {
       await transaction.eventPeople.updateMany({
         where: { id_event: id },
@@ -128,4 +173,16 @@ export const resetDraw = async (id: number): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+export const isOwnedByOrganizer = async (
+  eventId: number,
+  organizerId: number,
+): Promise<boolean> => {
+  const eventItem = await prisma.event.findFirst({
+    where: { id: eventId, id_organizer: organizerId },
+    select: { id: true },
+  });
+
+  return eventItem !== null;
 };

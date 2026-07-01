@@ -1,20 +1,30 @@
 import { NextRequest, NextResponse } from "next/server";
 import * as people from "@/server/services/people";
-import { isAuthorized } from "@/lib/auth";
-import { getEventEditBlockResponse } from "@/server/guards/eventEditable";
+import { getOrganizerIdOrDeny } from "@/lib/auth";
+import {
+  getEventEditBlockResponse,
+  getEventOwnershipBlockResponse,
+} from "@/server/guards/eventEditable";
 import { z } from "zod";
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ idEvent: string; idGroup: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent, idGroup } = await params;
+  const eventId = Number(idEvent);
+
+  const ownershipResponse = await getEventOwnershipBlockResponse(
+    eventId,
+    organizerId,
+  );
+  if (ownershipResponse) return ownershipResponse;
+
   const items = await people.getAll({
-    id_event: Number(idEvent),
+    id_event: eventId,
     id_group: Number(idGroup),
   });
   if (items) return NextResponse.json({ people: items });
@@ -26,14 +36,13 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ idEvent: string; idGroup: string }> },
 ) {
-  if (!isAuthorized(request)) {
-    return NextResponse.json({ error: "Acesso negado" }, { status: 401 });
-  }
+  const organizerId = await getOrganizerIdOrDeny(request);
+  if (organizerId instanceof NextResponse) return organizerId;
 
   const { idEvent, idGroup } = await params;
   const eventId = Number(idEvent);
 
-  const lockedResponse = await getEventEditBlockResponse(eventId);
+  const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
   if (lockedResponse) return lockedResponse;
 
   const addPersonSchema = z.object({
@@ -47,7 +56,7 @@ export async function POST(
   }
 
   const newPerson = await people.addPerson({
-    id_event: Number(idEvent),
+    id_event: eventId,
     id_group: Number(idGroup),
     name: body.data.name,
   });
