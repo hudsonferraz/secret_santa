@@ -8,6 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { privatePageMetadata } from "@/lib/privatePageMetadata";
 import * as people from "@/server/services/people";
 
 type RevealPageProps = {
@@ -21,17 +22,17 @@ export async function generateMetadata({
   const result = await people.getRevealByToken(token);
 
   if (result.kind === "not_found") {
-    return { title: "Link inválido" };
+    return privatePageMetadata({ title: "Link inválido" });
   }
 
   if (result.kind === "revealed" || result.kind === "draw_pending") {
-    return {
+    return privatePageMetadata({
       title: result.eventTitle,
       description: result.eventDescription,
-    };
+    });
   }
 
-  return { title: result.eventTitle };
+  return privatePageMetadata({ title: result.eventTitle });
 }
 
 export default async function RevealPage({ params }: RevealPageProps) {

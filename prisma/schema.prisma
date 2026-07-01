@@ -50,8 +50,10 @@ model EventPeople {
   name String
   phone_number String?
   reveal_token String @unique @default(uuid())
-  matched String @default("")
+  matched_person_id Int?
 
   event Event @relation(fields: [id_event], references: [id], onDelete: Cascade)
   group EventGroup @relation(fields: [id_group], references: [id], onDelete: Cascade)
+  matched_person EventPeople? @relation("SecretSantaMatch", fields: [matched_person_id], references: [id], onDelete: SetNull)
+  matched_by EventPeople[] @relation("SecretSantaMatch")
 }

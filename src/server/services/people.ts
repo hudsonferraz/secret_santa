@@ -1,7 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import * as groups from "./groups";
-import { decryptMatch } from "../utils/match";
 
 type GetAllFilters = { id_event: number; id_group?: number };
 export const getAll = async (filters: GetAllFilters) => {
@@ -40,6 +39,13 @@ export const getByRevealToken = async (revealToken: string) => {
             description: true,
           },
         },
+        matched_person: {
+          select: {
+            id: true,
+            name: true,
+            id_event: true,
+          },
+        },
       },
     });
   } catch {
@@ -75,7 +81,7 @@ export const getRevealByToken = async (
     };
   }
 
-  if (!personItem.matched) {
+  if (!personItem.matched_person_id || !personItem.matched_person) {
     return {
       kind: "no_match",
       personName: personItem.name,
@@ -83,13 +89,7 @@ export const getRevealByToken = async (
     };
   }
 
-  const matchId = decryptMatch(personItem.matched);
-  const matchedPerson = await getOne({
-    id: matchId,
-    id_event: personItem.id_event,
-  });
-
-  if (!matchedPerson) {
+  if (personItem.matched_person.id_event !== personItem.id_event) {
     return {
       kind: "no_match",
       personName: personItem.name,
@@ -100,7 +100,7 @@ export const getRevealByToken = async (
   return {
     kind: "revealed",
     personName: personItem.name,
-    matchName: matchedPerson.name,
+    matchName: personItem.matched_person.name,
     eventTitle: personItem.event.title,
     eventDescription: personItem.event.description,
   };

@@ -1,7 +1,6 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { PublicEvent } from "@/lib/types";
-import { encryptMatch } from "../utils/match";
 import { findSecretSantaAssignment, getDrawValidationError } from "./matching";
 
 export type RunDrawResult = { ok: true } | { ok: false; error: string };
@@ -151,7 +150,7 @@ export const runDraw = async (
       for (const assignment of assignments) {
         await transaction.eventPeople.updateMany({
           where: { id: assignment.id, id_event: id },
-          data: { matched: encryptMatch(assignment.match) },
+          data: { matched_person_id: assignment.match },
         });
       }
 
@@ -181,7 +180,7 @@ export const resetDraw = async (id: number, organizerId: number): Promise<boolea
     await prisma.$transaction(async (transaction) => {
       await transaction.eventPeople.updateMany({
         where: { id_event: id },
-        data: { matched: "" },
+        data: { matched_person_id: null },
       });
 
       await transaction.event.update({
