@@ -1,7 +1,9 @@
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { encryptMatch } from "../utils/match";
-import { findSecretSantaAssignment } from "./matching";
+import { findSecretSantaAssignment, getDrawValidationError } from "./matching";
+
+export type RunDrawResult = { ok: true } | { ok: false; error: string };
 
 export const getAll = async () => {
   try {
@@ -39,33 +41,57 @@ export const update = async (id: number, data: EventsUpdateData) => {
 
 export const remove = async (id: number) => {
   try {
-    return await prisma.event.delete({ where: { id } });
+    return await prisma.$transaction(async (transaction) => {
+      await transaction.eventPeople.deleteMany({ where: { id_event: id } });
+      await transaction.eventGroup.deleteMany({ where: { id_event: id } });
+      return await transaction.event.delete({ where: { id } });
+    });
   } catch {
     return false;
   }
 };
 
-export const runDraw = async (id: number): Promise<boolean> => {
+export const runDraw = async (id: number): Promise<RunDrawResult> => {
   try {
-    return await prisma.$transaction(async (transaction) => {
-      const eventItem = await transaction.event.findFirst({
-        where: { id },
-        select: { grouped: true, status: true },
-      });
+    const eventItem = await prisma.event.findFirst({
+      where: { id },
+      select: { grouped: true, status: true },
+    });
 
-      if (!eventItem || eventItem.status) return false;
+    if (!eventItem) {
+      return { ok: false, error: "Evento não encontrado." };
+    }
 
-      const peopleList = await transaction.eventPeople.findMany({
-        where: { id_event: id },
-        select: { id: true, id_group: true },
-      });
+    if (eventItem.status) {
+      return { ok: false, error: "Sorteio já realizado." };
+    }
 
-      const assignments = findSecretSantaAssignment(
-        peopleList,
-        eventItem.grouped,
-      );
-      if (!assignments) return false;
+    const peopleList = await prisma.eventPeople.findMany({
+      where: { id_event: id },
+      select: { id: true, id_group: true },
+    });
 
+    const validationError = getDrawValidationError(
+      peopleList,
+      eventItem.grouped,
+    );
+    if (validationError) {
+      return { ok: false, error: validationError };
+    }
+
+    const assignments = findSecretSantaAssignment(
+      peopleList,
+      eventItem.grouped,
+    );
+    if (!assignments) {
+      return {
+        ok: false,
+        error:
+          "Não foi possível formar pares válidos com a composição atual de grupos.",
+      };
+    }
+
+    await prisma.$transaction(async (transaction) => {
       for (const assignment of assignments) {
         await transaction.eventPeople.updateMany({
           where: { id: assignment.id, id_event: id },
@@ -77,11 +103,11 @@ export const runDraw = async (id: number): Promise<boolean> => {
         where: { id },
         data: { status: true },
       });
-
-      return true;
     });
+
+    return { ok: true };
   } catch {
-    return false;
+    return { ok: false, error: "Ocorreu um erro ao realizar o sorteio." };
   }
 };
 

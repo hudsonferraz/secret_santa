@@ -55,6 +55,8 @@ type AdminEventDetailPageProps = {
   eventId: number;
 };
 
+type PageState = "loading" | "ready" | "not_found";
+
 export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const router = useRouter();
   const { token } = useAdminAuth();
@@ -63,7 +65,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const [groups, setGroups] = useState<EventGroup[]>([]);
   const [people, setPeople] = useState<EventPeople[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [pageState, setPageState] = useState<PageState>("loading");
   const [isSaving, setIsSaving] = useState(false);
 
   const [groupName, setGroupName] = useState("");
@@ -93,12 +95,16 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const loadData = useCallback(async () => {
     if (!token) return;
 
-    setIsLoading(true);
+    setPageState("loading");
 
     const eventResult = await adminGetEvent(token, eventId);
     if (!eventResult.ok) {
+      if (eventResult.status === 404) {
+        setPageState("not_found");
+        return;
+      }
       toast.error(eventResult.error);
-      setIsLoading(false);
+      setPageState("not_found");
       return;
     }
 
@@ -108,7 +114,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     let groupsResult = await adminGetGroups(token, eventId);
     if (!groupsResult.ok) {
       toast.error(groupsResult.error);
-      setIsLoading(false);
+      setPageState("not_found");
       return;
     }
 
@@ -136,7 +142,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
       setPeople([]);
     }
 
-    setIsLoading(false);
+    setPageState("ready");
   }, [token, eventId, loadPeople]);
 
   useEffect(() => {
@@ -294,11 +300,31 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     await loadPeople(selectedGroupId);
   };
 
-  if (isLoading || !eventItem) {
+  if (pageState === "loading") {
     return (
       <AdminShell title="Carregando evento...">
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-48 w-full" />
+      </AdminShell>
+    );
+  }
+
+  if (pageState === "not_found" || !eventItem) {
+    return (
+      <AdminShell title="Evento não encontrado">
+        <Card className="max-w-md">
+          <CardHeader>
+            <CardTitle>Evento não encontrado</CardTitle>
+            <CardDescription>
+              Este evento não existe ou foi removido.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button asChild>
+              <Link href="/admin/events">Voltar aos eventos</Link>
+            </Button>
+          </CardContent>
+        </Card>
       </AdminShell>
     );
   }

@@ -36,6 +36,21 @@ function hasMultipleGroups(people: MatchPerson[]): boolean {
   return groups.size >= 2;
 }
 
+export function getDrawValidationError(
+  people: MatchPerson[],
+  grouped: boolean,
+): string | null {
+  if (people.length < 2) {
+    return "É necessário pelo menos 2 participantes para realizar o sorteio.";
+  }
+
+  if (grouped && !hasMultipleGroups(people)) {
+    return "Eventos com grupos precisam de participantes em pelo menos 2 grupos diferentes.";
+  }
+
+  return null;
+}
+
 function backtrack(
   people: MatchPerson[],
   grouped: boolean,
@@ -78,8 +93,8 @@ export function findSecretSantaAssignment(
   people: MatchPerson[],
   grouped: boolean,
 ): MatchAssignment[] | null {
-  if (people.length < 2) return null;
-  if (grouped && !hasMultipleGroups(people)) return null;
+  const validationError = getDrawValidationError(people, grouped);
+  if (validationError) return null;
 
   const receiverOrder = people.map((_, index) => index);
   const assignment = new Array<number>(people.length);

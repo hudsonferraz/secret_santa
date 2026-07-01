@@ -16,7 +16,7 @@ export async function GET(
   const eventItem = await events.getOne(Number(id));
   if (eventItem) return NextResponse.json({ event: eventItem });
 
-  return NextResponse.json({ error: "Ocorreu um erro" }, { status: 404 });
+  return NextResponse.json({ error: "Evento não encontrado" }, { status: 404 });
 }
 
 export async function PUT(
@@ -47,11 +47,8 @@ export async function PUT(
 
   if (status === true) {
     const drawResult = await events.runDraw(eventId);
-    if (!drawResult) {
-      return NextResponse.json(
-        { error: "Grupo impossível de ser formado" },
-        { status: 400 },
-      );
+    if (!drawResult.ok) {
+      return NextResponse.json({ error: drawResult.error }, { status: 400 });
     }
 
     if (Object.keys(rest).length > 0) {

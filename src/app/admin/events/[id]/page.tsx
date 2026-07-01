@@ -1,3 +1,4 @@
+import { notFound } from "next/navigation";
 import { AdminEventDetailPage } from "@/components/admin/AdminEventDetailPage";
 
 type AdminEventDetailRouteProps = {
@@ -9,6 +10,10 @@ export default async function AdminEventDetailRoute({
 }: AdminEventDetailRouteProps) {
   const { id } = await params;
   const eventId = Number(id);
+
+  if (Number.isNaN(eventId) || eventId <= 0) {
+    notFound();
+  }
 
   return <AdminEventDetailPage eventId={eventId} />;
 }

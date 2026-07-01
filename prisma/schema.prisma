@@ -28,7 +28,7 @@ model EventGroup {
   id Int @id @default(autoincrement())
   id_event Int
   name String
-  event Event? @relation(fields: [id_event], references: [id])
+  event Event @relation(fields: [id_event], references: [id], onDelete: Cascade)
   EventPeople EventPeople[]
 }
 
@@ -41,6 +41,6 @@ model EventPeople {
   reveal_token String @unique @default(uuid())
   matched String @default("")
 
-  event Event? @relation(fields: [id_event], references: [id])
-  group EventGroup? @relation(fields: [id_group], references: [id])
+  event Event @relation(fields: [id_event], references: [id], onDelete: Cascade)
+  group EventGroup @relation(fields: [id_group], references: [id], onDelete: Cascade)
 }
