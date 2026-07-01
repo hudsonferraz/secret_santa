@@ -51,6 +51,7 @@ model EventPeople {
   phone_number String?
   reveal_token String @unique @default(uuid())
   matched_person_id Int?
+  link_sent Boolean @default(false)
 
   event Event @relation(fields: [id_event], references: [id], onDelete: Cascade)
   group EventGroup @relation(fields: [id_group], references: [id], onDelete: Cascade)

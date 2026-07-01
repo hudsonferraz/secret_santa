@@ -175,6 +175,18 @@ export async function adminCreatePerson(
   );
 }
 
+export async function adminUpdatePerson(
+  eventId: number,
+  groupId: number,
+  personId: number,
+  data: { name?: string; link_sent?: boolean },
+) {
+  return apiRequest<{ person: import("@/lib/types").EventPeople }>(
+    `/api/admin/people/${eventId}/${groupId}/${personId}`,
+    { method: "PUT", body: data },
+  );
+}
+
 export async function adminDeletePerson(
   eventId: number,
   groupId: number,

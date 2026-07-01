@@ -17,6 +17,7 @@ import {
   adminDeleteGroup,
   adminDeletePerson,
   adminGetPeople,
+  adminUpdatePerson,
   adminUpdateEvent,
 } from "@/lib/apiClient";
 import type { Event, EventGroup, EventPeople } from "@/lib/types";
@@ -30,6 +31,7 @@ import { ParticipantShareActions } from "@/components/admin/ParticipantShareActi
 import { loadAdminEventDetail } from "@/lib/loadAdminEventDetail";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -149,6 +151,28 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const handleGroupChange = async (groupId: number) => {
     setSelectedGroupId(groupId);
     await loadPeople(groupId);
+  };
+
+  const handleToggleLinkSent = async (personId: number, linkSent: boolean) => {
+    if (selectedGroupId === null) return;
+
+    setPeople((currentPeople) =>
+      currentPeople.map((person) =>
+        person.id === personId ? { ...person, link_sent: linkSent } : person,
+      ),
+    );
+
+    const result = await adminUpdatePerson(
+      eventId,
+      selectedGroupId,
+      personId,
+      { link_sent: linkSent },
+    );
+
+    if (!result.ok) {
+      toast.error(result.error);
+      await loadPeople(selectedGroupId);
+    }
   };
 
   const handleCreateGroup = async (formEvent: React.FormEvent<HTMLFormElement>) => {
@@ -504,24 +528,30 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
         </CardHeader>
         <CardContent className="space-y-4">
           {people.length > 0 && (
-            <div className="space-y-2">
-              <Label htmlFor="share_message_template">Modelo da mensagem</Label>
-              <select
-                id="share_message_template"
-                value={shareMessageTemplateId}
-                onChange={(event) =>
-                  setShareMessageTemplateId(
-                    event.target.value as ShareMessageTemplateId,
-                  )
-                }
-                className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {SHARE_MESSAGE_TEMPLATES.map((template) => (
-                  <option key={template.id} value={template.id}>
-                    {template.label}
-                  </option>
-                ))}
-              </select>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2 sm:flex-1">
+                <Label htmlFor="share_message_template">Modelo da mensagem</Label>
+                <select
+                  id="share_message_template"
+                  value={shareMessageTemplateId}
+                  onChange={(event) =>
+                    setShareMessageTemplateId(
+                      event.target.value as ShareMessageTemplateId,
+                    )
+                  }
+                  className="flex h-9 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {SHARE_MESSAGE_TEMPLATES.map((template) => (
+                    <option key={template.id} value={template.id}>
+                      {template.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {people.filter((person) => person.link_sent).length} de{" "}
+                {people.length} links enviados
+              </p>
             </div>
           )}
 
@@ -566,13 +596,39 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
               {people.map((person) => (
                 <li
                   key={person.id}
-                  className="flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:py-3"
+                  className={`flex flex-col gap-3 px-4 py-4 sm:flex-row sm:items-start sm:justify-between sm:py-3 ${
+                    person.link_sent ? "bg-muted/30" : ""
+                  }`}
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">{person.name}</p>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {buildRevealPath(person.reveal_token)}
-                    </p>
+                  <div className="flex min-w-0 flex-1 gap-3">
+                    <div className="flex min-h-11 items-start pt-0.5">
+                      <Checkbox
+                        id={`link-sent-${person.id}`}
+                        checked={person.link_sent}
+                        onCheckedChange={(checked) =>
+                          handleToggleLinkSent(person.id, checked === true)
+                        }
+                        disabled={isSaving}
+                        aria-label={`Marcar ${person.name} como enviado`}
+                        className="size-5"
+                      />
+                    </div>
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Label
+                          htmlFor={`link-sent-${person.id}`}
+                          className="cursor-pointer font-medium"
+                        >
+                          {person.name}
+                        </Label>
+                        {person.link_sent && (
+                          <Badge variant="secondary">Enviado</Badge>
+                        )}
+                      </div>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {buildRevealPath(person.reveal_token)}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex w-full flex-col gap-2 sm:w-auto sm:items-end">
                     <ParticipantShareActions

@@ -47,14 +47,25 @@ export async function PUT(
   const { idEvent, idGroup, id } = await params;
   const eventId = Number(idEvent);
 
-  const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
-  if (lockedResponse) return lockedResponse;
-
   const body = updatePersonSchema.safeParse(
     await request.json().catch(() => null),
   );
   if (!body.success) {
     return NextResponse.json({ error: "Dados inválidos" }, { status: 400 });
+  }
+
+  const isLinkSentOnlyUpdate =
+    body.data.link_sent !== undefined && body.data.name === undefined;
+
+  if (!isLinkSentOnlyUpdate) {
+    const lockedResponse = await getEventEditBlockResponse(eventId, organizerId);
+    if (lockedResponse) return lockedResponse;
+  } else {
+    const ownershipResponse = await getEventOwnershipBlockResponse(
+      eventId,
+      organizerId,
+    );
+    if (ownershipResponse) return ownershipResponse;
   }
 
   const updatedPerson = await people.updatePerson(

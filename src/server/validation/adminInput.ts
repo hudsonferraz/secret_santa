@@ -30,6 +30,12 @@ export const createPersonSchema = z.object({
   name: personNameSchema,
 });
 
-export const updatePersonSchema = z.object({
-  name: personNameSchema.optional(),
-});
+export const updatePersonSchema = z
+  .object({
+    name: personNameSchema.optional(),
+    link_sent: z.boolean().optional(),
+  })
+  .refine(
+    (data) => data.name !== undefined || data.link_sent !== undefined,
+    { message: "Informe ao menos um campo para atualizar." },
+  );
