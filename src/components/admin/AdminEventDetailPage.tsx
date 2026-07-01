@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -96,11 +96,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
 
   const isLocked = eventItem?.status === true;
 
-  const shareUrl = useMemo(() => {
-    if (typeof window === "undefined") return `/event/${eventId}`;
-    return `${window.location.origin}/event/${eventId}`;
-  }, [eventId]);
-
   const loadPeople = useCallback(
     async (groupId: number) => {
       const result = await adminGetPeople(eventId, groupId);
@@ -158,15 +153,6 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     );
     if (copied) {
       toast.success("Link pessoal copiado!");
-    } else {
-      toast.error("Não foi possível copiar o link.");
-    }
-  };
-
-  const handleCopyEventLink = async () => {
-    const copied = await copyTextToClipboard(shareUrl);
-    if (copied) {
-      toast.success("Link do evento copiado!");
     } else {
       toast.error("Não foi possível copiar o link.");
     }
@@ -336,16 +322,12 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
           <CardTitle>Informações do evento</CardTitle>
           <CardDescription>{eventItem.description}</CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Input readOnly value={shareUrl} className="font-mono text-xs" />
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={handleCopyEventLink}
-          >
-            <CopyIcon />
-            Copiar link
-          </Button>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            {isLocked
+              ? "Envie o link pessoal de cada participante. Esses links são privados e mostram apenas o sorteado daquela pessoa."
+              : "Depois do sorteio, copie e envie o link pessoal de cada participante abaixo."}
+          </p>
         </CardContent>
       </Card>
 
@@ -522,7 +504,9 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
           <CardDescription>
             {selectedGroupId === null
               ? "Selecione ou crie um grupo para adicionar participantes."
-              : "Copie o link pessoal de cada participante e envie no WhatsApp."}
+              : isLocked
+                ? "Envie um link pessoal para cada participante. Não compartilhe links numéricos de evento."
+                : "Adicione participantes antes de realizar o sorteio."}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { GiftIcon, ShieldCheckIcon, UsersIcon } from "lucide-react";
-import { EventCodeForm } from "@/components/landing/EventCodeForm";
+import { RevealLinkForm } from "@/components/landing/RevealLinkForm";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -52,8 +52,8 @@ export default function HomePage() {
             Organize seu amigo secreto em minutos
           </h1>
           <p className="text-base text-muted-foreground sm:text-lg">
-            Crie o evento, cadastre os participantes e compartilhe um link.
-            Cada pessoa descobre seu sorteado de forma individual.
+            Crie o evento, cadastre os participantes e envie um link pessoal
+            para cada um. Cada pessoa descobre seu sorteado de forma privada.
           </p>
         </section>
 
@@ -72,14 +72,14 @@ export default function HomePage() {
         <section className="mx-auto w-full max-w-md">
           <Card>
             <CardHeader>
-              <CardTitle>Entrar em um evento</CardTitle>
+              <CardTitle>Ver meu amigo secreto</CardTitle>
               <CardDescription>
-                Cole o código do evento ou o link pessoal que o organizador
-                enviou para você.
+                Cole o link pessoal que o organizador enviou para você no
+                WhatsApp ou mensagem privada.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <EventCodeForm />
+              <RevealLinkForm />
             </CardContent>
           </Card>
         </section>
