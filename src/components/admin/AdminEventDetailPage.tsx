@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminEventMobileActions } from "@/components/admin/AdminEventMobileActions";
+import { DrawPreviewPanel } from "@/components/admin/DrawPreviewPanel";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { CollapsibleSection } from "@/components/admin/CollapsibleSection";
 import {
@@ -22,7 +23,7 @@ import {
   adminUpdatePerson,
   adminUpdateEvent,
 } from "@/lib/apiClient";
-import type { Event, EventGroup, EventPeople } from "@/lib/types";
+import type { DrawPreview, Event, EventGroup, EventPeople } from "@/lib/types";
 import { buildRevealPath } from "@/lib/revealUrl";
 import {
   DEFAULT_SHARE_MESSAGE_TEMPLATE_ID,
@@ -111,6 +112,12 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const [personName, setPersonName] = useState("");
   const [shareMessageTemplateId, setShareMessageTemplateId] =
     useState<ShareMessageTemplateId>(DEFAULT_SHARE_MESSAGE_TEMPLATE_ID);
+  const [drawPreview, setDrawPreview] = useState<DrawPreview | null>(null);
+  const [drawPreviewKey, setDrawPreviewKey] = useState(0);
+
+  const refreshDrawPreview = useCallback(() => {
+    setDrawPreviewKey((currentKey) => currentKey + 1);
+  }, []);
 
   const isLocked = eventItem?.status === true;
   const useGroupAccordion = Boolean(eventItem?.grouped && groups.length > 1);
@@ -248,6 +255,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     setGroupName("");
     setIsSaving(false);
     await loadData();
+    refreshDrawPreview();
   };
 
   const handleCreatePerson = async (
@@ -271,6 +279,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     setPersonName("");
     setIsSaving(false);
     await loadPeople(selectedGroupId);
+    refreshDrawPreview();
   };
 
   const handleRunDraw = async () => {
@@ -299,6 +308,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     toast.success("Sorteio resetado.");
     setIsSaving(false);
     await loadData();
+    refreshDrawPreview();
   };
 
   const handleDeleteEvent = async () => {
@@ -328,6 +338,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     toast.success("Grupo removido.");
     setIsSaving(false);
     await loadData();
+    refreshDrawPreview();
   };
 
   const handleDeletePerson = async (personId: number, groupId: number) => {
@@ -344,6 +355,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     toast.success("Participante removido.");
     setIsSaving(false);
     await loadPeople(groupId);
+    refreshDrawPreview();
   };
 
   const renderShareTemplateSelector = (
@@ -550,7 +562,8 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   }
 
   const canAddParticipant = !isLocked && selectedGroupId !== null;
-  const canRunDraw = !isLocked && groups.length > 0;
+  const canRunDraw =
+    !isLocked && groups.length > 0 && drawPreview?.canDraw === true;
 
   return (
     <AdminShell title={eventItem.title}>
@@ -590,13 +603,23 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                 : "Realize o sorteio quando todos os participantes estiverem cadastrados."}
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          <CardContent className="flex flex-col gap-4">
+            {!isLocked ? (
+              <DrawPreviewPanel
+                eventId={eventId}
+                isLocked={isLocked}
+                refreshKey={drawPreviewKey}
+                onPreviewChange={setDrawPreview}
+              />
+            ) : null}
+
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
             {!isLocked ? (
               <Dialog>
                 <DialogTrigger asChild>
                   <Button
                     className="hidden w-full sm:inline-flex sm:w-auto"
-                    disabled={isSaving || groups.length === 0}
+                    disabled={isSaving || !canRunDraw}
                   >
                     Realizar sorteio
                   </Button>
@@ -679,6 +702,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                 </DialogFooter>
               </DialogContent>
             </Dialog>
+            </div>
           </CardContent>
         </Card>
 

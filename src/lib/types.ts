@@ -26,6 +26,24 @@ export type PublicEvent = {
   grouped: boolean;
 };
 
+export type GroupDrawSummary = {
+  id: number;
+  name: string;
+  participantCount: number;
+};
+
+export type DrawPreview = {
+  participantCount: number;
+  groupCount: number;
+  groupsWithParticipants: number;
+  grouped: boolean;
+  canDraw: boolean;
+  groupedDrawPossible: boolean;
+  blockingError: string | null;
+  warnings: string[];
+  groups: GroupDrawSummary[];
+};
+
 export type ApiErrorResponse = {
   error: string;
 };

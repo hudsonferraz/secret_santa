@@ -116,6 +116,12 @@ export async function adminGetEvent(eventId: number) {
   );
 }
 
+export async function adminGetDrawPreview(eventId: number) {
+  return apiRequest<{ preview: import("@/lib/types").DrawPreview }>(
+    `/api/admin/events/${eventId}/draw-preview`,
+  );
+}
+
 export async function adminUpdateEvent(
   eventId: number,
   data: {
