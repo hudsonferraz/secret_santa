@@ -44,6 +44,17 @@ export type DrawPreview = {
   groups: GroupDrawSummary[];
 };
 
+export type EventPeopleGroupSummary = {
+  participantCount: number;
+  sentCount: number;
+};
+
+export type EventPeopleSummary = {
+  participantCount: number;
+  sentCount: number;
+  byGroup: Record<number, EventPeopleGroupSummary>;
+};
+
 export type ApiErrorResponse = {
   error: string;
 };

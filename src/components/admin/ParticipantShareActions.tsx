@@ -9,6 +9,7 @@ import {
   buildWhatsAppShareUrl,
   type ShareMessageTemplateId,
 } from "@/lib/shareMessage";
+import { usePublicAppOrigin } from "@/lib/usePublicAppOrigin";
 import { Button } from "@/components/ui/button";
 
 type ParticipantShareActionsProps = {
@@ -24,18 +25,30 @@ export function ParticipantShareActions({
   eventTitle,
   templateId,
 }: ParticipantShareActionsProps) {
-  const revealUrl = buildRevealUrl(
-    revealToken,
-    typeof window === "undefined" ? "" : window.location.origin,
-  );
+  const origin = usePublicAppOrigin();
 
-  const shareMessage = buildParticipantShareMessage(templateId, {
-    participantName,
-    revealUrl,
-    eventTitle,
-  });
+  const buildShareContent = (resolvedOrigin: string) => {
+    const revealUrl = buildRevealUrl(revealToken, resolvedOrigin);
+    const shareMessage = buildParticipantShareMessage(templateId, {
+      participantName,
+      revealUrl,
+      eventTitle,
+    });
+
+    return { revealUrl, shareMessage };
+  };
+
+  const resolveOriginForAction = () =>
+    origin || (typeof window !== "undefined" ? window.location.origin : "");
 
   const handleCopyLink = async () => {
+    const actionOrigin = resolveOriginForAction();
+    if (!actionOrigin) {
+      toast.error("Não foi possível montar o link completo.");
+      return;
+    }
+
+    const { revealUrl } = buildShareContent(actionOrigin);
     const copied = await copyTextToClipboard(revealUrl);
     if (copied) {
       toast.success("Link pessoal copiado!");
@@ -45,6 +58,13 @@ export function ParticipantShareActions({
   };
 
   const handleCopyMessage = async () => {
+    const actionOrigin = resolveOriginForAction();
+    if (!actionOrigin) {
+      toast.error("Não foi possível montar a mensagem completa.");
+      return;
+    }
+
+    const { shareMessage } = buildShareContent(actionOrigin);
     const copied = await copyTextToClipboard(shareMessage);
     if (copied) {
       toast.success("Mensagem copiada!");
@@ -52,6 +72,8 @@ export function ParticipantShareActions({
       toast.error("Não foi possível copiar a mensagem.");
     }
   };
+
+  const shareContent = origin ? buildShareContent(origin) : null;
 
   return (
     <div className="flex w-full flex-wrap gap-2 sm:w-auto sm:justify-end">
@@ -75,20 +97,31 @@ export function ParticipantShareActions({
         <MessageCircleIcon />
         Copiar mensagem
       </Button>
-      <Button
-        type="button"
-        size="sm"
-        className="min-h-11 flex-1 sm:min-h-0 sm:flex-none"
-        asChild
-      >
-        <a
-          href={buildWhatsAppShareUrl(shareMessage)}
-          target="_blank"
-          rel="noopener noreferrer"
+      {shareContent ? (
+        <Button
+          type="button"
+          size="sm"
+          className="min-h-11 flex-1 sm:min-h-0 sm:flex-none"
+          asChild
+        >
+          <a
+            href={buildWhatsAppShareUrl(shareContent.shareMessage)}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Abrir WhatsApp
+          </a>
+        </Button>
+      ) : (
+        <Button
+          type="button"
+          size="sm"
+          className="min-h-11 flex-1 sm:min-h-0 sm:flex-none"
+          disabled
         >
           Abrir WhatsApp
-        </a>
-      </Button>
+        </Button>
+      )}
     </div>
   );
 }

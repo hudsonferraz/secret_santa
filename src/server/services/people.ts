@@ -150,3 +150,57 @@ export const deletePerson = async (filters: DeleteFilters) => {
     return false;
   }
 };
+
+export type EventPeopleGroupSummary = {
+  participantCount: number;
+  sentCount: number;
+};
+
+export type EventPeopleSummary = {
+  participantCount: number;
+  sentCount: number;
+  byGroup: Record<number, EventPeopleGroupSummary>;
+};
+
+export const getEventPeopleSummary = async (
+  eventId: number,
+): Promise<EventPeopleSummary | false> => {
+  try {
+    const peopleRows = await prisma.eventPeople.findMany({
+      where: { id_event: eventId },
+      select: { id_group: true, link_sent: true },
+    });
+
+    const byGroup: Record<number, EventPeopleGroupSummary> = {};
+
+    for (const person of peopleRows) {
+      const currentGroupSummary = byGroup[person.id_group] ?? {
+        participantCount: 0,
+        sentCount: 0,
+      };
+
+      currentGroupSummary.participantCount += 1;
+      if (person.link_sent) {
+        currentGroupSummary.sentCount += 1;
+      }
+
+      byGroup[person.id_group] = currentGroupSummary;
+    }
+
+    let participantCount = 0;
+    let sentCount = 0;
+
+    for (const groupSummary of Object.values(byGroup)) {
+      participantCount += groupSummary.participantCount;
+      sentCount += groupSummary.sentCount;
+    }
+
+    return {
+      participantCount,
+      sentCount,
+      byGroup,
+    };
+  } catch {
+    return false;
+  }
+};

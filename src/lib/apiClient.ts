@@ -122,6 +122,12 @@ export async function adminGetDrawPreview(eventId: number) {
   );
 }
 
+export async function adminGetEventPeopleSummary(eventId: number) {
+  return apiRequest<{ summary: import("@/lib/types").EventPeopleSummary }>(
+    `/api/admin/events/${eventId}/people-summary`,
+  );
+}
+
 export async function adminUpdateEvent(
   eventId: number,
   data: {

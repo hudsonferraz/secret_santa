@@ -16,17 +16,25 @@ import { AdminParticipantForm } from "@/components/admin/event-detail/AdminParti
 import { AdminParticipantList } from "@/components/admin/event-detail/AdminParticipantList";
 import type { AdminEventDetailPageState } from "@/components/admin/event-detail/constants";
 import { ShareMessageTemplateSelector } from "@/components/admin/event-detail/ShareMessageTemplateSelector";
+import { formatGroupShareSummary } from "@/components/admin/event-detail/formatGroupShareSummary";
 import {
   adminCreateGroup,
   adminCreatePerson,
   adminDeleteEvent,
   adminDeleteGroup,
   adminDeletePerson,
+  adminGetEventPeopleSummary,
   adminGetPeople,
   adminUpdatePerson,
   adminUpdateEvent,
 } from "@/lib/apiClient";
-import type { DrawPreview, Event, EventGroup, EventPeople } from "@/lib/types";
+import type {
+  DrawPreview,
+  Event,
+  EventGroup,
+  EventPeople,
+  EventPeopleSummary,
+} from "@/lib/types";
 import {
   DEFAULT_SHARE_MESSAGE_TEMPLATE_ID,
   type ShareMessageTemplateId,
@@ -67,10 +75,49 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     useState<ShareMessageTemplateId>(DEFAULT_SHARE_MESSAGE_TEMPLATE_ID);
   const [drawPreview, setDrawPreview] = useState<DrawPreview | null>(null);
   const [drawPreviewKey, setDrawPreviewKey] = useState(0);
+  const [peopleSummary, setPeopleSummary] = useState<EventPeopleSummary | null>(
+    null,
+  );
 
   const refreshDrawPreview = useCallback(() => {
     setDrawPreviewKey((currentKey) => currentKey + 1);
   }, []);
+
+  const loadPeopleSummary = useCallback(async () => {
+    const result = await adminGetEventPeopleSummary(eventId);
+    if (result.ok) {
+      setPeopleSummary(result.data.summary);
+    }
+  }, [eventId]);
+
+  const updatePeopleSummaryForLinkSent = useCallback(
+    (groupId: number, linkSent: boolean) => {
+      setPeopleSummary((currentSummary) => {
+        if (!currentSummary) {
+          return currentSummary;
+        }
+
+        const groupSummary = currentSummary.byGroup[groupId] ?? {
+          participantCount: 0,
+          sentCount: 0,
+        };
+        const sentDelta = linkSent ? 1 : -1;
+
+        return {
+          participantCount: currentSummary.participantCount,
+          sentCount: Math.max(0, currentSummary.sentCount + sentDelta),
+          byGroup: {
+            ...currentSummary.byGroup,
+            [groupId]: {
+              ...groupSummary,
+              sentCount: Math.max(0, groupSummary.sentCount + sentDelta),
+            },
+          },
+        };
+      });
+    },
+    [],
+  );
 
   const isLocked = eventItem?.status === true;
   const useGroupAccordion = Boolean(eventItem?.grouped && groups.length > 1);
@@ -155,6 +202,27 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     };
   }, [eventId]);
 
+  useEffect(() => {
+    if (pageState !== "ready" || !eventItem?.grouped || groups.length <= 1) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void (async () => {
+      const result = await adminGetEventPeopleSummary(eventId);
+      if (cancelled || !result.ok) {
+        return;
+      }
+
+      setPeopleSummary(result.data.summary);
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [pageState, eventItem?.grouped, groups.length, eventId]);
+
   const handleGroupChange = async (groupId: number) => {
     setSelectedGroupId(groupId);
     await loadPeople(groupId);
@@ -179,6 +247,8 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
       setPeople((currentPeople) => updatePeopleList(currentPeople));
     }
 
+    updatePeopleSummaryForLinkSent(groupId, linkSent);
+
     const result = await adminUpdatePerson(eventId, groupId, personId, {
       link_sent: linkSent,
     });
@@ -186,6 +256,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     if (!result.ok) {
       toast.error(result.error);
       await loadPeople(groupId);
+      await loadPeopleSummary();
     }
   };
 
@@ -208,6 +279,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     setIsSaving(false);
     await loadData();
     refreshDrawPreview();
+    await loadPeopleSummary();
   };
 
   const handleCreatePerson = async (
@@ -232,6 +304,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     setIsSaving(false);
     await loadPeople(selectedGroupId);
     refreshDrawPreview();
+    await loadPeopleSummary();
   };
 
   const handleRunDraw = async () => {
@@ -261,6 +334,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     setIsSaving(false);
     await loadData();
     refreshDrawPreview();
+    await loadPeopleSummary();
   };
 
   const handleDeleteEvent = async () => {
@@ -291,6 +365,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     setIsSaving(false);
     await loadData();
     refreshDrawPreview();
+    await loadPeopleSummary();
   };
 
   const handleDeletePerson = async (personId: number, groupId: number) => {
@@ -308,6 +383,7 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
     setIsSaving(false);
     await loadPeople(groupId);
     refreshDrawPreview();
+    await loadPeopleSummary();
   };
 
   if (pageState === "loading") {
@@ -343,13 +419,12 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
   const canRunDraw =
     !isLocked && groups.length > 0 && drawPreview?.canDraw === true;
 
-  const allParticipants = Object.values(peopleByGroupId).flat();
-  const totalParticipantCount =
-    allParticipants.length > 0 ? allParticipants.length : people.length;
-  const totalSentCount =
-    allParticipants.length > 0
-      ? allParticipants.filter((person) => person.link_sent).length
-      : people.filter((person) => person.link_sent).length;
+  const totalParticipantCount = useGroupAccordion
+    ? (peopleSummary?.participantCount ?? 0)
+    : people.length;
+  const totalSentCount = useGroupAccordion
+    ? (peopleSummary?.sentCount ?? 0)
+    : people.filter((person) => person.link_sent).length;
 
   return (
     <AdminShell title={eventItem.title}>
@@ -407,20 +482,16 @@ export function AdminEventDetailPage({ eventId }: AdminEventDetailPageProps) {
                 />
                 {groups.map((group) => {
                   const groupPeople = peopleByGroupId[group.id];
-                  const participantCount = groupPeople?.length ?? 0;
-                  const sentCount =
-                    groupPeople?.filter((person) => person.link_sent).length ??
-                    0;
 
                   return (
                     <CollapsibleSection
                       key={group.id}
                       title={group.name}
-                      summary={
-                        groupPeople === undefined
-                          ? "Toque para carregar participantes"
-                          : `${participantCount} participante${participantCount === 1 ? "" : "s"} · ${sentCount} enviado${sentCount === 1 ? "" : "s"}`
-                      }
+                      summary={formatGroupShareSummary(
+                        group.id,
+                        groupPeople,
+                        peopleSummary,
+                      )}
                       defaultOpen={group.id === selectedGroupId}
                       onOpenChange={(open) => {
                         if (open) {
